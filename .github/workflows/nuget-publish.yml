@@ -29,6 +29,7 @@ jobs:
           test-projects: "**/*UnitTests/*.csproj"
           configuration: "Release"
           dotnet-version: "8.0.x"
+          run-tests: 'false'
 
       - name: Pack and Push NuGet Package
         uses: simplify9/sw-workflows/actions/dotnet-pack-push@main

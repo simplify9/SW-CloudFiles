@@ -3,13 +3,15 @@
     <PropertyGroup>
         <TargetFramework>net8.0</TargetFramework>
         <PackageId>SimplyWorks.CloudFiles.OC.Extensions</PackageId>
+        <Description>ASP.NET Core dependency injection extensions for SimplyWorks.CloudFiles.OC. Provides easy configuration and registration of Oracle Cloud Infrastructure Object Storage services with OCI authentication. See full documentation at https://github.com/simplify9/SW-CloudFiles</Description>
+        <PackageTags>cloud storage;oracle cloud;oci;oracle cloud infrastructure;object storage;aspnet core;dependency injection;extensions</PackageTags>
         <Product>SimplyWorks.CloudFiles.OC.Extensions</Product>
         <Authors>Simplify9</Authors>
         <Copyright>Simplify9</Copyright>
         <Company>Simplify9</Company>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
-        <PackageProjectUrl>https://github.com/simplify9/CloudFiles</PackageProjectUrl>
-        <RepositoryUrl>https://github.com/simplify9/CloudFiles</RepositoryUrl>
+        <PackageProjectUrl>https://github.com/simplify9/SW-CloudFiles</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/simplify9/SW-CloudFiles</RepositoryUrl>
         <PackageIcon>icon.png</PackageIcon>
         <RootNamespace>SW.CloudFiles.Extensions</RootNamespace>
     </PropertyGroup>

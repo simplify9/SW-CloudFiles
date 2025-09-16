@@ -3,13 +3,15 @@
     <PropertyGroup>
         <TargetFramework>net8.0</TargetFramework>
         <PackageId>SimplyWorks.CloudFiles.AS.Extensions</PackageId>
+        <Description>ASP.NET Core dependency injection extensions for SimplyWorks.CloudFiles.AS. Provides easy configuration and registration of Azure Blob Storage services with automatic container creation. See full documentation at https://github.com/simplify9/SW-CloudFiles</Description>
+        <PackageTags>cloud storage;azure;blob storage;microsoft azure;aspnet core;dependency injection;extensions</PackageTags>
         <Product>SimplyWorks.CloudFiles.AS.Extensions</Product>
         <Authors>Simplify9</Authors>
         <Copyright>Simplify9</Copyright>
         <Company>Simplify9</Company>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
-        <PackageProjectUrl>https://github.com/simplify9/CloudFiles</PackageProjectUrl>
-        <RepositoryUrl>https://github.com/simplify9/CloudFiles</RepositoryUrl>
+        <PackageProjectUrl>https://github.com/simplify9/SW-CloudFiles</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/simplify9/SW-CloudFiles</RepositoryUrl>
         <PackageIcon>icon.png</PackageIcon>
         <RootNamespace>SW.CloudFiles.Extensions</RootNamespace>
     </PropertyGroup>

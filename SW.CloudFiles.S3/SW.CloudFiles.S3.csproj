@@ -3,6 +3,21 @@
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <PackageId>SimplyWorks.CloudFiles.S3</PackageId>
+    <Description>Multi-cloud storage abstraction library for S3-compatible storage (AWS S3, DigitalOcean Spaces, MinIO, etc.). Provides unified file operations with automatic lifecycle management. Part of SW.CloudFiles suite supporting Azure, Google Cloud, and Oracle Cloud. See full documentation at https://github.com/simplify9/SW-CloudFiles</Description>
+    <PackageTags>cloud storage;s3;aws;digitalocean;minio;file upload;blob storage;abstraction</PackageTags>
+    <Copyright>Simplify9</Copyright>
+    <Company>Simplify9</Company>
+    <Authors>Simplify9</Authors>
+    <Product>SimplyWorks.CloudFiles.S3</Product>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression> 
+    <PackageProjectUrl>https://github.com/simplify9/SW-CloudFiles</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/simplify9/SW-CloudFiles</RepositoryUrl>
+    <PackageIcon>icon.png</PackageIcon>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <PackageId>SimplyWorks.CloudFiles.S3</PackageId>
     <Copyright>Simplify9</Copyright>
     <Company>Simplify9</Company>
     <Authors>Simplify9</Authors>

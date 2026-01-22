@@ -18,7 +18,7 @@
     <ItemGroup>
       <PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.1" />
       <PackageReference Include="OCI.DotNetSDK.Objectstorage" Version="101.2.0" />
-      <PackageReference Include="SimplyWorks.PrimitiveTypes" Version="8.0.4" />
+      <PackageReference Include="SimplyWorks.PrimitiveTypes" Version="8.1.2" />
     </ItemGroup>
     <ItemGroup>
         <None Include="../icon.png">

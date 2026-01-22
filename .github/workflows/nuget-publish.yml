@@ -17,13 +17,13 @@ jobs:
 
       - name: Determine semantic version
         id: semver
-        uses: simplify9/sw-workflows/actions/determine-semver@main
+        uses: simplify9/.github/.github/actions/determine-semver@main
         with:
           major: ${{ env.MAJOR }}
           minor: ${{ env.MINOR }}
 
       - name: Dotnet Restore, Build, and Test
-        uses: simplify9/sw-workflows/actions/dotnet-build@main
+        uses: simplify9/.github/.github/actions/dotnet-build@main
         with:
           projects: "**/*.csproj"
           test-projects: "**/*UnitTests/*.csproj"
@@ -32,7 +32,7 @@ jobs:
           run-tests: 'false'
 
       - name: Pack and Push NuGet Package
-        uses: simplify9/sw-workflows/actions/dotnet-pack-push@main
+        uses: simplify9/.github/.github/actions/dotnet-pack-push@main
         with:
           projects: "SW.CloudFiles.S3/SW.CloudFiles.S3.csproj SW.CloudFiles.S3.Extensions/SW.CloudFiles.S3.Extensions.csproj SW.CloudFiles.AS/SW.CloudFiles.AS.csproj SW.CloudFiles.OC/SW.CloudFiles.OC.csproj SW.CloudFiles.AS.Extensions/SW.CloudFiles.AS.Extensions.csproj SW.CloudFiles.OC.Extensions/SW.CloudFiles.OC.Extensions.csproj SW.CloudFiles.GC/SW.CloudFiles.GC.csproj SW.CloudFiles.GC.Extensions/SW.CloudFiles.GC.Extensions.csproj"
           configuration: "Release"
@@ -41,7 +41,7 @@ jobs:
           nuget-source: "https://api.nuget.org/v3/index.json"
 
       - name: Tag new version on GitHub origin
-        uses: simplify9/sw-workflows/actions/tag-github-origin@main
+        uses: simplify9/.github/.github/actions/tag-github-origin@main
         with:
           github-token: ${{ secrets.S9_GITHUB_TOKEN }}
           repository: ${{ github.repository }}

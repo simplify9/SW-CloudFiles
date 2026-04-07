@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using Azure.Identity;
 using Azure.Storage;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
@@ -9,20 +10,31 @@ namespace SW.CloudFiles.AS;
 
 public static class AsCloudFileOptionsExtensions
 {
-    public static BlobContainerClient CreateClient(this CloudFilesOptions cloudFilesOptions)
+    public static BlobContainerClient CreateClient(this AzureCloudFilesOptions cloudFilesOptions)
     {
-        var blobServiceClient = new BlobServiceClient(new Uri(cloudFilesOptions.ServiceUrl),
-            new StorageSharedKeyCredential(cloudFilesOptions.AccessKeyId, cloudFilesOptions.SecretAccessKey));
+        if (cloudFilesOptions.Managed)
+        {
+            var credential = cloudFilesOptions.ManagedIdentityClientId is not null
+                ? new DefaultAzureCredential(new DefaultAzureCredentialOptions
+                {
+                    ManagedIdentityClientId = cloudFilesOptions.ManagedIdentityClientId
+                })
+                : new DefaultAzureCredential();
 
-        var containers = blobServiceClient.GetBlobContainers();
-        BlobContainerClient blobContainerClient;
-
-        if (containers.All(c => c.Name != cloudFilesOptions.BucketName))
-            blobContainerClient =
-                blobServiceClient.CreateBlobContainer(cloudFilesOptions.BucketName, PublicAccessType.BlobContainer);
+            var blobServiceClient = new BlobServiceClient(new Uri(cloudFilesOptions.ServiceUrl), credential);
+            return blobServiceClient.GetBlobContainerClient(cloudFilesOptions.BucketName);
+        }
         else
-            blobContainerClient = blobServiceClient.GetBlobContainerClient(cloudFilesOptions.BucketName);
-        
-        return blobContainerClient;
+        {
+            var blobServiceClient = new BlobServiceClient(new Uri(cloudFilesOptions.ServiceUrl),
+                new StorageSharedKeyCredential(cloudFilesOptions.AccessKeyId, cloudFilesOptions.SecretAccessKey));
+
+            var containers = blobServiceClient.GetBlobContainers();
+
+            if (containers.All(c => c.Name != cloudFilesOptions.BucketName))
+                return blobServiceClient.CreateBlobContainer(cloudFilesOptions.BucketName, PublicAccessType.BlobContainer);
+
+            return blobServiceClient.GetBlobContainerClient(cloudFilesOptions.BucketName);
+        }
     }
 }

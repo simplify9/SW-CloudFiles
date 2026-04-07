@@ -9,9 +9,9 @@ using SW.PrimitiveTypes;
 
 namespace SW.CloudFiles.AS;
 
-public class CloudFilesService(CloudFilesOptions cloudFilesOptions) : IDisposable, ICloudFilesService
+public class CloudFilesService(AzureCloudFilesOptions cloudFilesOptions) : IDisposable, ICloudFilesService
 {
-    private readonly CloudFilesOptions cloudFilesOptions = cloudFilesOptions;
+    private readonly AzureCloudFilesOptions cloudFilesOptions = cloudFilesOptions;
     private readonly BlobContainerClient blobContainerClient = cloudFilesOptions.CreateClient();
 
     public async Task<RemoteBlob> WriteAsync(Stream inputStream, WriteFileSettings settings)
@@ -63,7 +63,13 @@ public class CloudFilesService(CloudFilesOptions cloudFilesOptions) : IDisposabl
         throw new NotImplementedException();
     }
 
-    public string GetUrl(string key) => $"{blobContainerClient.Uri}/{key}";
+    public string GetUrl(string key)
+    {
+        var baseUrl = !string.IsNullOrEmpty(cloudFilesOptions.PublicServiceUrl)
+            ? $"{cloudFilesOptions.PublicServiceUrl.TrimEnd('/')}/{cloudFilesOptions.BucketName}"
+            : blobContainerClient.Uri.ToString().TrimEnd('/');
+        return $"{baseUrl}/{key}";
+    }
 
     public WriteWrapper OpenWrite(WriteFileSettings settings)
     {

@@ -7,12 +7,14 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Oci.Common.Auth;
 using Oci.ObjectstorageService;
+using Oci.ObjectstorageService.Models;
 using Oci.ObjectstorageService.Requests;
 using Oci.ObjectstorageService.Transfer;
 using SW.PrimitiveTypes;
 
 namespace SW.CloudFiles.OC
 {
+    /// <summary>Oracle Cloud Infrastructure Object Storage implementation of <see cref="ICloudFilesService"/>.</summary>
     public class CloudFilesService : ICloudFilesService, IDisposable
     {
         private readonly OracleCloudFilesOptions _cloudFilesOptions;
@@ -20,6 +22,7 @@ namespace SW.CloudFiles.OC
         private readonly ObjectStorageClient _client;
         private readonly ILogger<CloudFilesService> _logger;
 
+        /// <summary>Initialises the service and configures the OCI Object Storage client.</summary>
         public CloudFilesService(OracleCloudFilesOptions cloudFilesOptions, ILogger<CloudFilesService> logger)
         {
             _cloudFilesOptions = cloudFilesOptions;
@@ -30,6 +33,7 @@ namespace SW.CloudFiles.OC
             _uploadManager = new UploadManager(_client, new UploadConfiguration());
         }
 
+        /// <inheritdoc/>
         public async Task<RemoteBlob> WriteAsync(Stream inputStream, WriteFileSettings settings)
         {
             var mimeType = settings.ContentType ?? "application/octet-stream";
@@ -53,6 +57,7 @@ namespace SW.CloudFiles.OC
             };
         }
 
+        /// <inheritdoc/>
         public async Task<RemoteBlob> WriteTextAsync(string text, WriteFileSettings settings)
         {
             var byteArray = Encoding.UTF8.GetBytes(text);
@@ -77,18 +82,35 @@ namespace SW.CloudFiles.OC
             };
         }
 
+        /// <inheritdoc/>
         public string GetSignedUrl(string key, TimeSpan expiry)
         {
-            throw new NotImplementedException();
+            var response = _client.CreatePreauthenticatedRequest(new CreatePreauthenticatedRequestRequest
+            {
+                BucketName = _cloudFilesOptions.BucketName,
+                NamespaceName = _cloudFilesOptions.NamespaceName,
+                CreatePreauthenticatedRequestDetails = new CreatePreauthenticatedRequestDetails
+                {
+                    Name = $"par-{Guid.NewGuid():N}",
+                    ObjectName = key,
+                    AccessType = CreatePreauthenticatedRequestDetails.AccessTypeEnum.ObjectRead,
+                    TimeExpires = DateTime.UtcNow.Add(expiry)
+                }
+            }).GetAwaiter().GetResult();
+
+            return $"https://objectstorage.{_cloudFilesOptions.Region}.oraclecloud.com{response.PreauthenticatedRequest.AccessUri}";
         }
 
+        /// <inheritdoc/>
         public string GetUrl(string key) => _cloudFilesOptions.GetFileUrl(key);
 
+        /// <inheritdoc/>
         public WriteWrapper OpenWrite(WriteFileSettings settings)
         {
             throw new NotImplementedException();
         }
 
+        /// <inheritdoc/>
         public async Task<Stream> OpenReadAsync(string key)
         {
             var getObjectObjectRequest = new GetObjectRequest()
@@ -101,6 +123,7 @@ namespace SW.CloudFiles.OC
             return response.InputStream;
         }
 
+        /// <inheritdoc/>
         public async Task<IEnumerable<CloudFileInfo>> ListAsync(string prefix)
         {
             var response = await _client.ListObjects(new ListObjectsRequest
@@ -117,6 +140,7 @@ namespace SW.CloudFiles.OC
                 Size = x.Size ?? 0,
             });
         }
+        /// <inheritdoc/>
         public async Task<IReadOnlyDictionary<string, string>> GetMetadataAsync(string key)
         {
             var headObject = await _client.HeadObject(new HeadObjectRequest()
@@ -140,6 +164,7 @@ namespace SW.CloudFiles.OC
             return result;
         }
 
+        /// <inheritdoc/>
         public async Task<bool> DeleteAsync(string key)
         {
             try
@@ -159,6 +184,7 @@ namespace SW.CloudFiles.OC
             }
         }
 
+        /// <inheritdoc/>
         public void Dispose() => _client?.Dispose();
     }
 }

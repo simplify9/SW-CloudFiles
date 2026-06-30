@@ -2,8 +2,13 @@ using SW.PrimitiveTypes;
 
 namespace SW.CloudFiles.AS;
 
+/// <summary>Configuration options for the Azure Blob Storage provider.</summary>
 public class AzureCloudFilesOptions : CloudFilesOptions
 {
+    /// <summary>
+    /// When true, authenticates using Azure managed identity (or <c>DefaultAzureCredential</c>)
+    /// instead of a storage account key.
+    /// </summary>
     public bool Managed { get; set; }
 
     /// <summary>
@@ -20,4 +25,12 @@ public class AzureCloudFilesOptions : CloudFilesOptions
     /// Falls back to ServiceUrl when not set.
     /// </summary>
     public string PublicServiceUrl { get; set; }
+
+    /// <summary>
+    /// Reserved for future use. Azure Blob Storage lifecycle management policies require the
+    /// Azure Resource Manager (ARM) plane and cannot be configured automatically through
+    /// the data-plane SDK. Configure lifecycle rules via the Azure Portal, Azure CLI
+    /// (<c>az storage account management-policy create</c>), or ARM templates.
+    /// </summary>
+    public bool DisableAutoLifecycle { get; set; }
 }

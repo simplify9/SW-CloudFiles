@@ -8,8 +8,13 @@ using SW.PrimitiveTypes;
 
 namespace SW.CloudFiles.AS;
 
+/// <summary>Factory extensions for creating a <see cref="BlobContainerClient"/> from <see cref="AzureCloudFilesOptions"/>.</summary>
 public static class AsCloudFileOptionsExtensions
 {
+    /// <summary>
+    /// Creates and returns a <see cref="BlobContainerClient"/> authenticated according to
+    /// <see cref="AzureCloudFilesOptions.Managed"/>. The container is created if it does not exist.
+    /// </summary>
     public static BlobContainerClient CreateClient(this AzureCloudFilesOptions cloudFilesOptions)
     {
         if (cloudFilesOptions.Managed)

@@ -18,8 +18,10 @@ internal class GoogleJsonCredentialsModel
     public string universe_domain { get; set; }
 }
 
+/// <summary>Factory extensions for building a <see cref="StorageClient"/> from <see cref="GoogleCloudFilesOptions"/>.</summary>
 public static class GoogleCloudFileOptionsExtensions
 {
+    /// <summary>Creates a <see cref="StorageClient"/> authenticated with the service account credentials in <paramref name="options"/>.</summary>
     public static StorageClient BuildGoogleCloudStorageClient(this GoogleCloudFilesOptions options)
     {
         var model = new GoogleJsonCredentialsModel
@@ -36,12 +38,8 @@ public static class GoogleCloudFileOptionsExtensions
             client_x509_cert_url = options.ClientX509CertUrl,
             universe_domain = options.UniverseDomain
         };
-        
-        var json= JsonSerializer.Serialize(model);
-        var builder = new StorageClientBuilder
-        {
-            JsonCredentials = json
-        };
-        return builder.Build();
+
+        var json = JsonSerializer.Serialize(model);
+        return new StorageClientBuilder { JsonCredentials = json }.Build();
     }
 }

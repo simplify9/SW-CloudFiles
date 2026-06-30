@@ -9,19 +9,21 @@ using System.Threading.Tasks;
 
 namespace SW.CloudFiles.S3;
 
+/// <summary>S3-compatible implementation of <see cref="ICloudFilesService"/>.</summary>
 public class CloudFilesService : IDisposable, ICloudFilesService
 {
-
     private const string metadataPrefix = "x-amz-meta-";
     private readonly CloudFilesOptions cloudFilesOptions;
     private readonly AmazonS3Client client;
 
+    /// <summary>Initialises the service and creates the underlying S3 client.</summary>
     public CloudFilesService(CloudFilesOptions cloudFilesOptions)
     {
         this.cloudFilesOptions = cloudFilesOptions;
         client = cloudFilesOptions.CreateClient();
     }
 
+    /// <inheritdoc/>
     async public Task<RemoteBlob> WriteAsync(Stream inputStream, WriteFileSettings settings)
     {
         var contentLength = inputStream.Length;
@@ -50,6 +52,7 @@ public class CloudFilesService : IDisposable, ICloudFilesService
         };
     }
 
+    /// <inheritdoc/>
     async public Task<RemoteBlob> WriteTextAsync(string text, WriteFileSettings settings)
     {
         var request = new PutObjectRequest
@@ -72,6 +75,7 @@ public class CloudFilesService : IDisposable, ICloudFilesService
         };
     }
 
+    /// <inheritdoc/>
     public string GetSignedUrl(string key, TimeSpan expiry)
     {
         var request = new GetPreSignedUrlRequest
@@ -86,11 +90,7 @@ public class CloudFilesService : IDisposable, ICloudFilesService
     }
 
 
-    /// <summary>
-    /// Deletes object.
-    /// </summary>
-    /// <param name="key"></param>
-    /// <returns>True if delete was successful, false if it wasn't.</returns>
+    /// <inheritdoc/>
     public async Task<bool> DeleteAsync(string key)
     {
         var request = new DeleteObjectRequest
@@ -104,6 +104,7 @@ public class CloudFilesService : IDisposable, ICloudFilesService
         else return false;
     }
 
+    /// <inheritdoc/>
     public string GetUrl(string key)
     {
         var request = new GetPreSignedUrlRequest
@@ -121,6 +122,7 @@ public class CloudFilesService : IDisposable, ICloudFilesService
 
 
 
+    /// <inheritdoc/>
     public WriteWrapper OpenWrite(WriteFileSettings settings)
     {
 
@@ -150,6 +152,7 @@ public class CloudFilesService : IDisposable, ICloudFilesService
         return new WriteWrapper(httpWebRequest, this, settings);
     }
 
+    /// <inheritdoc/>
     async public Task<IReadOnlyDictionary<string, string>> GetMetadataAsync(string key)
     {
         GetObjectMetadataRequest request = new GetObjectMetadataRequest
@@ -180,6 +183,7 @@ public class CloudFilesService : IDisposable, ICloudFilesService
 
     }
 
+    /// <inheritdoc/>
     async public Task<Stream> OpenReadAsync(string key)
     {
         GetObjectRequest request = new GetObjectRequest
@@ -203,6 +207,7 @@ public class CloudFilesService : IDisposable, ICloudFilesService
         //}
     }
 
+    /// <inheritdoc/>
     public async Task<IEnumerable<CloudFileInfo>> ListAsync(string prefix)
     {
 
@@ -231,6 +236,7 @@ public class CloudFilesService : IDisposable, ICloudFilesService
 
     }
 
+    /// <inheritdoc/>
     public void Dispose()
     {
         client?.Dispose();

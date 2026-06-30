@@ -12,26 +12,19 @@ using SW.CloudFiles.S3;
 
 namespace SW.CloudFiles.Extensions;
 
+/// <summary>ASP.NET Core DI extension methods for registering the S3-compatible <see cref="ICloudFilesService"/>.</summary>
 public static class IServiceCollectionExtensions
 {
     /// <summary>
-    /// Method to add all the needed services &
-    /// it initializes a space if it doesnot exist &
-    /// it makes sure of the lifecycle prefix rules to exist
-    /// 
-    /// Life cycle rules are:
-    /// 1. temp1/ expires after a day
-    /// 2. temp7/ expires after a week
-    /// 3. temp30/ expires after a month
-    /// 4. tem365/ expires after a year
+    /// Registers an S3-compatible provider as the <see cref="ICloudFilesService"/> implementation.
+    /// On startup, creates the bucket if it does not exist and — unless
+    /// <see cref="S3CloudFilesOptions.DisableAutoLifecycle"/> is true — ensures delete lifecycle rules
+    /// exist for the temp1/, temp7/, temp30/, and temp365/ prefixes (1, 7, 30, and 365 days respectively).
     /// </summary>
-    /// <param name="serviceCollection"></param>
-    /// <param name="configure"></param>
-    /// <returns></returns>
     public static IServiceCollection AddS3CloudFiles(this IServiceCollection serviceCollection,
-        Action<CloudFilesOptions> configure = null)
+        Action<S3CloudFilesOptions> configure = null)
     {
-        var cloudFilesOptions = new CloudFilesOptions();
+        var cloudFilesOptions = new S3CloudFilesOptions();
         if (configure != null) configure.Invoke(cloudFilesOptions);
 
         var serviceProvider = serviceCollection.BuildServiceProvider();
@@ -42,7 +35,6 @@ public static class IServiceCollectionExtensions
 
         using (var client = cloudFilesOptions.CreateClient())
         {
-
             if (!AmazonS3Util.DoesS3BucketExistV2Async(client, cloudFilesOptions.BucketName).WaitAndUnwrapException())
             {
                 var putBucketRequest = new PutBucketRequest
@@ -51,96 +43,93 @@ public static class IServiceCollectionExtensions
                     CannedACL = S3CannedACL.Private
                 };
                 client.PutBucketAsync(putBucketRequest).WaitAndUnwrapException();
-
             }
 
-            var config = client.GetLifecycleConfigurationAsync(new GetLifecycleConfigurationRequest
+            if (!cloudFilesOptions.DisableAutoLifecycle)
             {
-                BucketName = cloudFilesOptions.BucketName
-            }).WaitAndUnwrapException().Configuration;
-
-
-            var newRules = new List<LifecycleRule> { };
-
-            if (config.Rules?.FirstOrDefault(r => r.Id == "temp1") == null ||
-                config.Rules?.FirstOrDefault(r => r.Id == "temp1")?.Status != LifecycleRuleStatus.Enabled)
-                newRules.Add(new LifecycleRule
+                var config = client.GetLifecycleConfigurationAsync(new GetLifecycleConfigurationRequest
                 {
-                    Id = "temp1",
-                    Expiration = new LifecycleRuleExpiration { Days = 1 },
-                    Filter = new LifecycleFilter()
+                    BucketName = cloudFilesOptions.BucketName
+                }).WaitAndUnwrapException().Configuration;
+
+                var newRules = new List<LifecycleRule> { };
+
+                if (config.Rules?.FirstOrDefault(r => r.Id == "temp1") == null ||
+                    config.Rules?.FirstOrDefault(r => r.Id == "temp1")?.Status != LifecycleRuleStatus.Enabled)
+                    newRules.Add(new LifecycleRule
                     {
-                        LifecycleFilterPredicate = new LifecyclePrefixPredicate()
+                        Id = "temp1",
+                        Expiration = new LifecycleRuleExpiration { Days = 1 },
+                        Filter = new LifecycleFilter()
                         {
-                            Prefix = "temp1/"
-                        }
-                    },
-                    Status = LifecycleRuleStatus.Enabled
+                            LifecycleFilterPredicate = new LifecyclePrefixPredicate()
+                            {
+                                Prefix = "temp1/"
+                            }
+                        },
+                        Status = LifecycleRuleStatus.Enabled
+                    });
 
-                });
-
-            if (config.Rules?.FirstOrDefault(r => r.Id == "temp7") == null ||
-                config.Rules?.FirstOrDefault(r => r.Id == "temp7")?.Status != LifecycleRuleStatus.Enabled)
-                newRules.Add(new LifecycleRule
-                {
-                    Id = "temp7",
-                    Expiration = new LifecycleRuleExpiration { Days = 7 },
-                    Filter = new LifecycleFilter()
+                if (config.Rules?.FirstOrDefault(r => r.Id == "temp7") == null ||
+                    config.Rules?.FirstOrDefault(r => r.Id == "temp7")?.Status != LifecycleRuleStatus.Enabled)
+                    newRules.Add(new LifecycleRule
                     {
-                        LifecycleFilterPredicate = new LifecyclePrefixPredicate()
+                        Id = "temp7",
+                        Expiration = new LifecycleRuleExpiration { Days = 7 },
+                        Filter = new LifecycleFilter()
                         {
-                            Prefix = "temp7/"
-                        }
-                    },
-                    Status = LifecycleRuleStatus.Enabled
-                });
+                            LifecycleFilterPredicate = new LifecyclePrefixPredicate()
+                            {
+                                Prefix = "temp7/"
+                            }
+                        },
+                        Status = LifecycleRuleStatus.Enabled
+                    });
 
-            if (config.Rules?.FirstOrDefault(r => r.Id == "temp30") == null ||
-                config.Rules?.FirstOrDefault(r => r.Id == "temp30")?.Status != LifecycleRuleStatus.Enabled)
-                newRules.Add(new LifecycleRule
-                {
-                    Id = "temp30",
-                    Expiration = new LifecycleRuleExpiration { Days = 30 },
-                    Filter = new LifecycleFilter
+                if (config.Rules?.FirstOrDefault(r => r.Id == "temp30") == null ||
+                    config.Rules?.FirstOrDefault(r => r.Id == "temp30")?.Status != LifecycleRuleStatus.Enabled)
+                    newRules.Add(new LifecycleRule
                     {
-                        LifecycleFilterPredicate = new LifecyclePrefixPredicate
+                        Id = "temp30",
+                        Expiration = new LifecycleRuleExpiration { Days = 30 },
+                        Filter = new LifecycleFilter
                         {
-                            Prefix = "temp30/"
-                        }
-                    },
-                    Status = LifecycleRuleStatus.Enabled
-                });
+                            LifecycleFilterPredicate = new LifecyclePrefixPredicate
+                            {
+                                Prefix = "temp30/"
+                            }
+                        },
+                        Status = LifecycleRuleStatus.Enabled
+                    });
 
-            if (config.Rules?.FirstOrDefault(r => r.Id == "temp365") == null ||
-                config.Rules?.FirstOrDefault(r => r.Id == "temp365")?.Status != LifecycleRuleStatus.Enabled)
-                newRules.Add(new LifecycleRule
-                {
-                    Id = "temp365",
-                    Expiration = new LifecycleRuleExpiration { Days = 365 },
-                    Filter = new LifecycleFilter()
+                if (config.Rules?.FirstOrDefault(r => r.Id == "temp365") == null ||
+                    config.Rules?.FirstOrDefault(r => r.Id == "temp365")?.Status != LifecycleRuleStatus.Enabled)
+                    newRules.Add(new LifecycleRule
                     {
-                        LifecycleFilterPredicate = new LifecyclePrefixPredicate()
+                        Id = "temp365",
+                        Expiration = new LifecycleRuleExpiration { Days = 365 },
+                        Filter = new LifecycleFilter()
                         {
-                            Prefix = "temp365/"
-                        }
-                    },
-                    Status = LifecycleRuleStatus.Enabled
+                            LifecycleFilterPredicate = new LifecyclePrefixPredicate()
+                            {
+                                Prefix = "temp365/"
+                            }
+                        },
+                        Status = LifecycleRuleStatus.Enabled
+                    });
 
-                });
-
-            if (newRules.Count > 0)
-            {
-
-                client.PutLifecycleConfigurationAsync(new PutLifecycleConfigurationRequest
+                if (newRules.Count > 0)
                 {
-                    BucketName = cloudFilesOptions.BucketName,
-                    Configuration = new LifecycleConfiguration { Rules = newRules }
-                }).WaitAndUnwrapException();
-
+                    client.PutLifecycleConfigurationAsync(new PutLifecycleConfigurationRequest
+                    {
+                        BucketName = cloudFilesOptions.BucketName,
+                        Configuration = new LifecycleConfiguration { Rules = newRules }
+                    }).WaitAndUnwrapException();
+                }
             }
         }
 
-        serviceCollection.AddSingleton(cloudFilesOptions);
+        serviceCollection.AddSingleton<CloudFilesOptions>(cloudFilesOptions);
         serviceCollection.AddTransient<ICloudFilesService, CloudFilesService>();
 
         return serviceCollection;

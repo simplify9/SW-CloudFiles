@@ -34,7 +34,7 @@ jobs:
       - name: Pack and Push NuGet Package
         uses: simplify9/.github/.github/actions/dotnet-pack-push@main
         with:
-          projects: "SW.CloudFiles.S3/SW.CloudFiles.S3.csproj SW.CloudFiles.S3.Extensions/SW.CloudFiles.S3.Extensions.csproj SW.CloudFiles.AS/SW.CloudFiles.AS.csproj SW.CloudFiles.OC/SW.CloudFiles.OC.csproj SW.CloudFiles.AS.Extensions/SW.CloudFiles.AS.Extensions.csproj SW.CloudFiles.OC.Extensions/SW.CloudFiles.OC.Extensions.csproj SW.CloudFiles.GC/SW.CloudFiles.GC.csproj SW.CloudFiles.GC.Extensions/SW.CloudFiles.GC.Extensions.csproj"
+          projects: "SW.CloudFiles.S3/SW.CloudFiles.S3.csproj SW.CloudFiles.S3.Extensions/SW.CloudFiles.S3.Extensions.csproj SW.CloudFiles.AS/SW.CloudFiles.AS.csproj SW.CloudFiles.OC/SW.CloudFiles.OC.csproj SW.CloudFiles.AS.Extensions/SW.CloudFiles.AS.Extensions.csproj SW.CloudFiles.OC.Extensions/SW.CloudFiles.OC.Extensions.csproj SW.CloudFiles.GC/SW.CloudFiles.GC.csproj SW.CloudFiles.GC.Extensions/SW.CloudFiles.GC.Extensions.csproj SW.CloudFiles.LocalTests/SW.CloudFiles.LocalTests.csproj SW.CloudFiles.LocalTests.Extensions/SW.CloudFiles.LocalTests.Extensions.csproj"
           configuration: "Release"
           version: ${{ steps.semver.outputs.version }}
           api-key: ${{ secrets.SWNUGETKEY }}

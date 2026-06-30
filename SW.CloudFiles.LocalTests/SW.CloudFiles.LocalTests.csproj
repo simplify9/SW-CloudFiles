@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <PackageId>SimplyWorks.CloudFiles.LocalTests</PackageId>
+        <Description>Local filesystem provider for ICloudFilesService. FOR TESTING AND LOCAL DEVELOPMENT ONLY — do not use in production. Stores files under the OS temp directory and exposes a Cleanup() method for explicit teardown, which is especially important on Windows where temp files are not cleared automatically.</Description>
+        <PackageTags>cloud storage;local;filesystem;testing;development;mock</PackageTags>
+        <Copyright>Simplify9</Copyright>
+        <Company>Simplify9</Company>
+        <Authors>Simplify9</Authors>
+        <Product>SimplyWorks.CloudFiles.LocalTests</Product>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageProjectUrl>https://github.com/simplify9/SW-CloudFiles</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/simplify9/SW-CloudFiles</RepositoryUrl>
+        <PackageIcon>icon.png</PackageIcon>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <AssemblyVersion>8.0.0.0</AssemblyVersion>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="SimplyWorks.PrimitiveTypes" Version="8.1.3" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Include="../icon.png">
+            <Pack>True</Pack>
+            <PackagePath></PackagePath>
+        </None>
+    </ItemGroup>
+
+</Project>

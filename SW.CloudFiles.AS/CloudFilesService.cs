@@ -3,17 +3,23 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
+using Azure.Identity;
+using Azure.Storage;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
+using Azure.Storage.Blobs.Specialized;
+using Azure.Storage.Sas;
 using SW.PrimitiveTypes;
 
 namespace SW.CloudFiles.AS;
 
+/// <summary>Azure Blob Storage implementation of <see cref="ICloudFilesService"/>.</summary>
 public class CloudFilesService(AzureCloudFilesOptions cloudFilesOptions) : IDisposable, ICloudFilesService
 {
     private readonly AzureCloudFilesOptions cloudFilesOptions = cloudFilesOptions;
     private readonly BlobContainerClient blobContainerClient = cloudFilesOptions.CreateClient();
 
+    /// <inheritdoc/>
     public async Task<RemoteBlob> WriteAsync(Stream inputStream, WriteFileSettings settings)
     {
         var blobClient = blobContainerClient.GetBlobClient(settings.Key);
@@ -37,6 +43,7 @@ public class CloudFilesService(AzureCloudFilesOptions cloudFilesOptions) : IDisp
         };
     }
 
+    /// <inheritdoc/>
     public async Task<RemoteBlob> WriteTextAsync(string text, WriteFileSettings settings)
     {
         var blobClient = blobContainerClient.GetBlobClient(settings.Key);
@@ -58,11 +65,42 @@ public class CloudFilesService(AzureCloudFilesOptions cloudFilesOptions) : IDisp
         };
     }
 
+    /// <inheritdoc/>
     public string GetSignedUrl(string key, TimeSpan expiry)
     {
-        throw new NotImplementedException();
+        var expiresOn = DateTimeOffset.UtcNow.Add(expiry);
+
+        if (cloudFilesOptions.Managed)
+        {
+            var credential = cloudFilesOptions.ManagedIdentityClientId is not null
+                ? new DefaultAzureCredential(new DefaultAzureCredentialOptions
+                {
+                    ManagedIdentityClientId = cloudFilesOptions.ManagedIdentityClientId
+                })
+                : new DefaultAzureCredential();
+
+            var serviceClient = new BlobServiceClient(new Uri(cloudFilesOptions.ServiceUrl), credential);
+            var delegationKey = serviceClient.GetUserDelegationKey(DateTimeOffset.UtcNow, expiresOn);
+
+            var sasBuilder = new BlobSasBuilder(BlobSasPermissions.Read, expiresOn)
+            {
+                BlobContainerName = cloudFilesOptions.BucketName,
+                BlobName = key,
+            };
+
+            return new BlobUriBuilder(blobContainerClient.GetBlobClient(key).Uri)
+            {
+                Sas = sasBuilder.ToSasQueryParameters(delegationKey.Value, serviceClient.AccountName)
+            }.ToString();
+        }
+        else
+        {
+            var blobClient = blobContainerClient.GetBlobClient(key);
+            return blobClient.GenerateSasUri(BlobSasPermissions.Read, expiresOn).ToString();
+        }
     }
 
+    /// <inheritdoc/>
     public string GetUrl(string key)
     {
         var baseUrl = !string.IsNullOrEmpty(cloudFilesOptions.PublicServiceUrl)
@@ -71,11 +109,13 @@ public class CloudFilesService(AzureCloudFilesOptions cloudFilesOptions) : IDisp
         return $"{baseUrl}/{key}";
     }
 
+    /// <inheritdoc/>
     public WriteWrapper OpenWrite(WriteFileSettings settings)
     {
         throw new NotImplementedException();
     }
 
+    /// <inheritdoc/>
     public async Task<Stream> OpenReadAsync(string key)
     {
         var blob = blobContainerClient.GetBlobClient(key);
@@ -85,6 +125,7 @@ public class CloudFilesService(AzureCloudFilesOptions cloudFilesOptions) : IDisp
         return result.Value.Content;
     }
 
+    /// <inheritdoc/>
     public async Task<IEnumerable<CloudFileInfo>> ListAsync(string prefix)
     {
         var blobHierarchyItems =
@@ -106,6 +147,7 @@ public class CloudFilesService(AzureCloudFilesOptions cloudFilesOptions) : IDisp
         return files;
     }
 
+    /// <inheritdoc/>
     public async Task<IReadOnlyDictionary<string, string>> GetMetadataAsync(string key)
     {
         var blob = blobContainerClient.GetBlobClient(key);
@@ -131,6 +173,7 @@ public class CloudFilesService(AzureCloudFilesOptions cloudFilesOptions) : IDisp
         return data;
     }
 
+    /// <inheritdoc/>
     public async Task<bool> DeleteAsync(string key)
     {
         var blob = blobContainerClient.GetBlobClient(key);
@@ -138,6 +181,7 @@ public class CloudFilesService(AzureCloudFilesOptions cloudFilesOptions) : IDisp
         return true;
     }
 
+    /// <inheritdoc/>
     public void Dispose()
     {
 

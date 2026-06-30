@@ -15,14 +15,14 @@
 | SimplyWorks.CloudFiles.OC | [![NuGet](https://img.shields.io/nuget/v/SimplyWorks.CloudFiles.OC.svg)](https://www.nuget.org/packages/SimplyWorks.CloudFiles.OC/) |
 | SimplyWorks.CloudFiles.OC.Extensions | [![NuGet](https://img.shields.io/nuget/v/SimplyWorks.CloudFiles.OC.Extensions.svg)](https://www.nuget.org/packages/SimplyWorks.CloudFiles.OC.Extensions/) |
 
-## Introduction 
+## Introduction
 
 **SW.CloudFiles** is a unified, multi-cloud storage abstraction library for .NET 8 that provides a consistent interface across different cloud storage providers. It simplifies cloud storage operations by offering a single API that works with multiple cloud providers without vendor lock-in.
 
 ### Supported Cloud Providers
 
 - **🚀 S3-Compatible Storage** (AWS S3, DigitalOcean Spaces, MinIO, etc.)
-- **☁️ Azure Blob Storage** 
+- **☁️ Azure Blob Storage**
 - **🌐 Google Cloud Storage**
 - **🔶 Oracle Cloud Storage**
 
@@ -34,98 +34,82 @@ Choose the appropriate package based on your cloud storage provider:
 
 ### S3-Compatible Storage (AWS S3, DigitalOcean Spaces, MinIO, etc.)
 ```bash
-# Core library
-dotnet add package SimplyWorks.CloudFiles.S3
-
-# With ASP.NET Core DI extensions
 dotnet add package SimplyWorks.CloudFiles.S3.Extensions
 ```
 
 ### Azure Blob Storage
 ```bash
-# Core library  
-dotnet add package SimplyWorks.CloudFiles.AS
-
-# With ASP.NET Core DI extensions
 dotnet add package SimplyWorks.CloudFiles.AS.Extensions
 ```
 
 ### Google Cloud Storage
 ```bash
-# Core library
-dotnet add package SimplyWorks.CloudFiles.GC
-
-# With ASP.NET Core DI extensions  
 dotnet add package SimplyWorks.CloudFiles.GC.Extensions
 ```
 
 ### Oracle Cloud Storage
 ```bash
-# Core library
-dotnet add package SimplyWorks.CloudFiles.OC
-
-# With ASP.NET Core DI extensions
 dotnet add package SimplyWorks.CloudFiles.OC.Extensions
 ```
 
+> Install the core package (e.g. `SimplyWorks.CloudFiles.S3`) only if you need to reference the service or options types directly without the DI extensions.
+
 ## Getting Started
 
-All providers implement the same `ICloudFilesService` interface from [SimplyWorks.PrimitiveTypes](https://github.com/simplify9/PrimitiveTypes), ensuring a consistent API across different cloud providers.
+All providers implement the same `ICloudFilesService` interface from [SimplyWorks.PrimitiveTypes](https://github.com/simplify9/PrimitiveTypes), ensuring a consistent API.
 
 ### Configuration
 
-#### Option 1: appsettings.json Configuration
-Add your cloud storage configuration to `appsettings.json`:
+#### Option 1: appsettings.json
 
 ```json
 {
   "CloudFiles": {
     "AccessKeyId": "your-access-key",
-    "SecretAccessKey": "your-secret-key", 
+    "SecretAccessKey": "your-secret-key",
     "BucketName": "your-bucket-name",
     "ServiceUrl": "https://your-service-url"
   }
 }
 ```
 
-#### Option 2: Programmatic Configuration
-Configure directly in your startup:
+#### Option 2: Programmatic configuration
 
 ```csharp
 // S3-Compatible Storage
-services.AddS3CloudFiles(config => {
-    config.AccessKeyId = "your-access-key";
-    config.SecretAccessKey = "your-secret-key";
-    config.ServiceUrl = "https://s3.amazonaws.com"; // or your S3-compatible endpoint
-    config.BucketName = "your-bucket-name";
+services.AddS3CloudFiles(o => {
+    o.AccessKeyId = "your-access-key";
+    o.SecretAccessKey = "your-secret-key";
+    o.ServiceUrl = "https://s3.amazonaws.com";
+    o.BucketName = "your-bucket-name";
 });
 
-// Azure Blob Storage  
-services.AddAsCloudFiles(config => {
-    config.AccessKeyId = "your-account-name";
-    config.SecretAccessKey = "your-account-key";
-    config.ServiceUrl = "https://youraccount.blob.core.windows.net";
-    config.BucketName = "your-container-name";
+// Azure Blob Storage
+services.AddAsCloudFiles(o => {
+    o.AccessKeyId = "your-account-name";
+    o.SecretAccessKey = "your-account-key";
+    o.ServiceUrl = "https://youraccount.blob.core.windows.net";
+    o.BucketName = "your-container-name";
 });
 
 // Google Cloud Storage
-services.AddGoogleCloudFiles(config => {
-    config.ProjectId = "your-project-id";
-    config.BucketName = "your-bucket-name";
-    config.ClientEmail = "service-account@project.iam.gserviceaccount.com";
-    config.PrivateKey = "your-private-key";
-    // ... other Google Cloud credentials
+services.AddGoogleCloudFiles(o => {
+    o.ProjectId = "your-project-id";
+    o.BucketName = "your-bucket-name";
+    o.ClientEmail = "service-account@project.iam.gserviceaccount.com";
+    o.PrivateKey = "-----BEGIN RSA PRIVATE KEY-----\n...";
+    // ... other service account fields
 });
 
 // Oracle Cloud Storage
-services.AddOracleCloudFiles(config => {
-    config.TenantId = "your-tenant-id";
-    config.UserId = "your-user-id"; 
-    config.FingerPrint = "your-fingerprint";
-    config.Region = "your-region";
-    config.BucketName = "your-bucket-name";
-    config.NamespaceName = "your-namespace";
-    config.RSAKey = "your-rsa-private-key";
+services.AddOracleCloudFiles(o => {
+    o.TenantId = "your-tenant-ocid";
+    o.UserId = "your-user-ocid";
+    o.FingerPrint = "xx:xx:xx:...";
+    o.Region = "us-ashburn-1";
+    o.BucketName = "your-bucket-name";
+    o.NamespaceName = "your-namespace";
+    o.RSAKey = "-----BEGIN RSA PRIVATE KEY-----\n...";
 });
 ```
 
@@ -142,109 +126,74 @@ public class FileController : ControllerBase
     {
         _cloudFilesService = cloudFilesService;
     }
-    
-    // Your file operations here...
 }
+```
 
 ## Usage Examples
 
-### Basic File Operations
+### Upload a File
 
-#### Upload a File
 ```csharp
-public async Task<RemoteBlob> UploadFileAsync(Stream fileStream)
+var result = await _cloudFilesService.WriteAsync(fileStream, new WriteFileSettings
 {
-    var result = await _cloudFilesService.WriteAsync(fileStream, new WriteFileSettings
+    Key = "uploads/document.pdf",
+    ContentType = "application/pdf",
+    Public = true,
+    Metadata = new Dictionary<string, string>
     {
-        Key = "uploads/document.pdf",
-        ContentType = "application/pdf",
-        Public = true,
-        Metadata = new Dictionary<string, string>
-        {
-            ["UploadedBy"] = "user123",
-            ["UploadDate"] = DateTime.UtcNow.ToString()
-        }
-    });
-    
-    return result; // Contains Location, Name, Size, MimeType
-}
-```
-
-#### Upload Text Content
-```csharp
-public async Task<RemoteBlob> UploadTextAsync()
-{
-    var result = await _cloudFilesService.WriteTextAsync("Hello, World!", new WriteFileSettings
-    {
-        Key = "messages/hello.txt",
-        ContentType = "text/plain",
-        Public = false
-    });
-    
-    return result;
-}
-```
-
-#### Download a File
-```csharp
-public async Task DownloadFileAsync(string key)
-{
-    using var stream = await _cloudFilesService.OpenReadAsync(key);
-    using var fileStream = File.Create("downloaded-file.txt");
-    await stream.CopyToAsync(fileStream);
-}
-```
-
-#### List Files with Prefix
-```csharp
-public async Task<IEnumerable<CloudFileInfo>> ListFilesAsync()
-{
-    var files = await _cloudFilesService.ListAsync("uploads/");
-    
-    foreach (var file in files)
-    {
-        Console.WriteLine($"File: {file.Key}, Size: {file.Size}, Signature: {file.Signature}");
+        ["UploadedBy"] = "user123"
     }
-    
-    return files;
-}
+});
+// result.Location contains the public URL or a 1-hour signed URL
 ```
 
-#### Get File Metadata
+### Upload Text Content
+
 ```csharp
-public async Task<IReadOnlyDictionary<string, string>> GetFileInfoAsync(string key)
+var result = await _cloudFilesService.WriteTextAsync("Hello, World!", new WriteFileSettings
 {
-    var metadata = await _cloudFilesService.GetMetadataAsync(key);
-    
-    Console.WriteLine($"Content Type: {metadata["ContentType"]}");
-    Console.WriteLine($"File Hash: {metadata["Hash"]}");
-    Console.WriteLine($"Content Length: {metadata["ContentLength"]}");
-    
-    return metadata;
-}
+    Key = "messages/hello.txt",
+    ContentType = "text/plain"
+});
 ```
 
-#### Generate URLs
+### Download a File
+
 ```csharp
-public string GetFileUrls(string key)
-{
-    // Public URL (permanent, for public files)
-    var publicUrl = _cloudFilesService.GetUrl(key);
-    
-    // Signed URL (temporary, with expiration)  
-    var signedUrl = _cloudFilesService.GetSignedUrl(key, TimeSpan.FromHours(2));
-    
-    return signedUrl;
-}
+using var stream = await _cloudFilesService.OpenReadAsync("uploads/document.pdf");
+using var fileStream = File.Create("local-copy.pdf");
+await stream.CopyToAsync(fileStream);
 ```
 
-#### Delete a File
+### List Files
+
 ```csharp
-public async Task<bool> DeleteFileAsync(string key)
-{
-    var success = await _cloudFilesService.DeleteAsync(key);
-    return success;
-}
+var files = await _cloudFilesService.ListAsync("uploads/");
+foreach (var file in files)
+    Console.WriteLine($"{file.Key}  {file.Size} bytes");
+```
+
+### Generate URLs
+
+```csharp
+// Permanent public URL
+var publicUrl = _cloudFilesService.GetUrl(key);
+
+// Time-limited signed URL
+var signedUrl = _cloudFilesService.GetSignedUrl(key, TimeSpan.FromHours(2));
+```
+
+### Delete a File
+
+```csharp
+bool deleted = await _cloudFilesService.DeleteAsync("uploads/document.pdf");
+```
+
+### Get File Metadata
+
+```csharp
+var metadata = await _cloudFilesService.GetMetadataAsync(key);
+// Always includes: ContentType, Hash, ContentLength
 ```
 
 ### ASP.NET Core Controller Example
@@ -275,11 +224,7 @@ public class FilesController : ControllerBase
             CloseInputStream = false
         });
 
-        return Ok(new { 
-            url = result.Location,
-            size = result.Size,
-            fileName = result.Name 
-        });
+        return Ok(new { url = result.Location, size = result.Size, fileName = result.Name });
     }
 
     [HttpGet("download/{*filePath}")]
@@ -289,7 +234,6 @@ public class FilesController : ControllerBase
         {
             var stream = await _cloudFilesService.OpenReadAsync(filePath);
             var metadata = await _cloudFilesService.GetMetadataAsync(filePath);
-            
             return File(stream, metadata["ContentType"], Path.GetFileName(filePath));
         }
         catch
@@ -307,18 +251,95 @@ public class FilesController : ControllerBase
 }
 ```
 
-## Features
+## Automatic Lifecycle Management
 
-### Automatic Lifecycle Management (S3 Provider)
-The S3 provider automatically sets up lifecycle rules for temporary file prefixes:
+Three of the four providers automatically create **delete lifecycle rules** for temp-prefix objects on startup. This is useful for objects that are only needed temporarily.
 
-- `temp1/` - Files expire after 1 day
-- `temp7/` - Files expire after 7 days  
-- `temp30/` - Files expire after 30 days
-- `temp365/` - Files expire after 365 days
+| Prefix | Expiry |
+|--------|--------|
+| `temp1/`   | 1 day   |
+| `temp7/`   | 7 days  |
+| `temp30/`  | 30 days |
+| `temp365/` | 365 days |
 
-### Common Interface
-All providers implement the same `ICloudFilesService` interface:
+Rules are only added if they don't already exist — existing rules are never modified or removed.
+
+### Disabling Lifecycle Management
+
+Set `DisableAutoLifecycle = true` in any provider's options to skip the automatic rule setup:
+
+```csharp
+services.AddS3CloudFiles(o => {
+    // ... other config
+    o.DisableAutoLifecycle = true;
+});
+
+services.AddGoogleCloudFiles(o => {
+    // ... other config
+    o.DisableAutoLifecycle = true;
+});
+
+services.AddOracleCloudFiles(o => {
+    // ... other config
+    o.DisableAutoLifecycle = true;
+});
+```
+
+### Provider Support
+
+| Provider | Lifecycle support | Notes |
+|----------|------------------|-------|
+| S3 | ✅ Automatic | Rules applied via S3 Lifecycle Configuration API |
+| Google Cloud | ✅ Automatic | Rules applied via GCS Bucket Lifecycle API; bucket is created if it doesn't exist |
+| Oracle Cloud | ✅ Automatic | Rules applied via OCI Object Lifecycle Policy API |
+| Azure Blob | ⚠️ Manual | Azure lifecycle management requires the Azure Resource Manager (ARM) plane, which is separate from the data-plane SDK used by this library. Configure lifecycle rules via the [Azure Portal](https://learn.microsoft.com/en-us/azure/storage/blobs/lifecycle-management-overview), Azure CLI (`az storage account management-policy create`), or ARM templates. |
+
+## Signed URLs
+
+All four providers support `GetSignedUrl(key, expiry)`:
+
+| Provider | Mechanism |
+|----------|-----------|
+| S3 | Pre-signed URL (AWS Signature V4) |
+| Google Cloud | Signed URL (V4 signing via service account credentials) |
+| Azure (shared key) | Blob SAS token |
+| Azure (managed identity) | User Delegation SAS token |
+| Oracle Cloud | Pre-Authenticated Request (PAR) — creates a server-side resource on Oracle |
+
+> **Note:** Oracle PARs are server-side objects. Each call to `GetSignedUrl` creates a new PAR on Oracle Cloud.
+
+## Provider-Specific Notes
+
+### S3-Compatible Storage
+- Works with AWS S3, DigitalOcean Spaces, MinIO, and any S3-compatible service.
+- Bucket is created automatically if it does not exist.
+
+### Azure Blob Storage
+- Container is created automatically if it does not exist.
+- **Managed Identity**: Set `Managed = true`. Optionally set `ManagedIdentityClientId` for a user-assigned identity; omit it to use the system-assigned identity or ambient `DefaultAzureCredential`.
+- **Public URL override**: If you connect via private link (`ServiceUrl`) but need public-facing URLs, set `PublicServiceUrl` to the standard public endpoint (e.g. `https://account.blob.core.windows.net`).
+
+```csharp
+// Managed Identity example
+services.AddAsCloudFiles(o => {
+    o.ServiceUrl = "https://youraccount.blob.core.windows.net";
+    o.BucketName = "your-container";
+    o.Managed = true;
+    o.ManagedIdentityClientId = "your-client-id"; // omit for system-assigned
+    o.PublicServiceUrl = "https://youraccount.blob.core.windows.net"; // optional
+});
+```
+
+### Google Cloud Storage
+- Requires a service account with Storage Object Admin role on the bucket.
+- Bucket is created automatically if it does not exist (requires Storage Admin role on the project).
+- `GetSignedUrl` uses V4 signing via the service account's private key.
+
+### Oracle Cloud Storage
+- OCI credentials (`UserId`, `TenantId`, `FingerPrint`, `RSAKey`) are written to temporary files on startup and used to authenticate via `ConfigFileAuthenticationDetailsProvider`.
+- `GetSignedUrl` creates a Pre-Authenticated Request (PAR) with read-only access.
+
+## Interface Reference
 
 ```csharp
 public interface ICloudFilesService
@@ -335,33 +356,11 @@ public interface ICloudFilesService
 }
 ```
 
-## Provider-Specific Notes
-
-### S3-Compatible Storage
-- Works with AWS S3, DigitalOcean Spaces, MinIO, and other S3-compatible services
-- Supports custom service URLs for S3-compatible providers
-- Automatic lifecycle rule setup for temporary file management
-
-### Azure Blob Storage  
-- Uses Azure.Storage.Blobs SDK
-- Supports Azure Storage Account authentication
-- Container is created automatically if it doesn't exist
-
-### Google Cloud Storage
-- Requires service account JSON credentials  
-- Supports all Google Cloud Storage features
-- Uses Google.Cloud.Storage.V1 client library
-
-### Oracle Cloud Storage
-- Uses Oracle Cloud Infrastructure (OCI) SDK
-- Requires OCI configuration file and RSA private key
-- Supports Oracle Cloud tenancy and namespace configuration
-
 ## Requirements
 
 - **.NET 8.0** or later
 - Appropriate cloud provider account and credentials
-- [SimplyWorks.PrimitiveTypes](https://github.com/simplify9/PrimitiveTypes) for common interfaces
+- [SimplyWorks.PrimitiveTypes](https://github.com/simplify9/PrimitiveTypes)
 
 ## Contributing
 
@@ -369,19 +368,8 @@ Contributions are welcome! Please read our [Contributing Guidelines](.github/CON
 
 ## License
 
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
-
-## Support
-
-If you encounter any bugs or have feature requests, please [submit an issue](https://github.com/simplify9/SW-CloudFiles/issues).
+This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
 
 ## About Simplify9
 
-SW.CloudFiles is developed and maintained by [Simplify9](https://github.com/simplify9). We create tools and libraries that simplify cloud development. 
-
-
-
-
-
-
-
+SW.CloudFiles is developed and maintained by [Simplify9](https://github.com/simplify9).

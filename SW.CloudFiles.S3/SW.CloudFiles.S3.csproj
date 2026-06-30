@@ -13,7 +13,9 @@
     <PackageProjectUrl>https://github.com/simplify9/SW-CloudFiles</PackageProjectUrl>
     <RepositoryUrl>https://github.com/simplify9/SW-CloudFiles</RepositoryUrl>
     <PackageIcon>icon.png</PackageIcon>
-  </PropertyGroup>
+      <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <AssemblyVersion>8.0.0.0</AssemblyVersion>
+    </PropertyGroup>
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -26,7 +28,9 @@
     <PackageProjectUrl>https://github.com/simplify9/CloudFiles</PackageProjectUrl>
     <RepositoryUrl>https://github.com/simplify9/CloudFiles</RepositoryUrl>
     <PackageIcon>icon.png</PackageIcon>
-  </PropertyGroup>
+      <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <AssemblyVersion>8.0.0.0</AssemblyVersion>
+    </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="AWSSDK.S3" Version="3.7.412.2" />

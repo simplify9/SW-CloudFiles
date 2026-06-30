@@ -6,8 +6,19 @@ using SW.PrimitiveTypes;
 
 namespace SW.CloudFiles.AS.Extensions;
 
+/// <summary>ASP.NET Core DI extension methods for registering the Azure Blob Storage <see cref="ICloudFilesService"/>.</summary>
 public static class IServiceCollectionExtensions
 {
+    /// <summary>
+    /// Registers Azure Blob Storage as the <see cref="ICloudFilesService"/> implementation.
+    /// On startup, creates the container if it does not exist.
+    /// <para>
+    /// Note: Azure lifecycle management policies require the Azure Resource Manager (ARM) plane and
+    /// are not configured automatically. Set them via the Azure Portal, Azure CLI
+    /// (<c>az storage account management-policy create</c>), or ARM templates.
+    /// <see cref="AzureCloudFilesOptions.DisableAutoLifecycle"/> is accepted but has no effect.
+    /// </para>
+    /// </summary>
     public static IServiceCollection AddAsCloudFiles(this IServiceCollection serviceCollection, Action<AzureCloudFilesOptions> configure = null)
     {
         var cloudFilesOptions = new AzureCloudFilesOptions();

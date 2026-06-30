@@ -7,6 +7,9 @@
 
         <IsPackable>false</IsPackable>
         <IsTestProject>true</IsTestProject>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <AssemblyVersion>8.0.0.0</AssemblyVersion>
+        <NoWarn>CS1591</NoWarn>
     </PropertyGroup>
 
     <ItemGroup>

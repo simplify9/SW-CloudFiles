@@ -14,6 +14,8 @@
 | SimplyWorks.CloudFiles.GC.Extensions | [![NuGet](https://img.shields.io/nuget/v/SimplyWorks.CloudFiles.GC.Extensions.svg)](https://www.nuget.org/packages/SimplyWorks.CloudFiles.GC.Extensions/) |
 | SimplyWorks.CloudFiles.OC | [![NuGet](https://img.shields.io/nuget/v/SimplyWorks.CloudFiles.OC.svg)](https://www.nuget.org/packages/SimplyWorks.CloudFiles.OC/) |
 | SimplyWorks.CloudFiles.OC.Extensions | [![NuGet](https://img.shields.io/nuget/v/SimplyWorks.CloudFiles.OC.Extensions.svg)](https://www.nuget.org/packages/SimplyWorks.CloudFiles.OC.Extensions/) |
+| SimplyWorks.CloudFiles.LocalTests | [![NuGet](https://img.shields.io/nuget/v/SimplyWorks.CloudFiles.LocalTests.svg)](https://www.nuget.org/packages/SimplyWorks.CloudFiles.LocalTests/) |
+| SimplyWorks.CloudFiles.LocalTests.Extensions | [![NuGet](https://img.shields.io/nuget/v/SimplyWorks.CloudFiles.LocalTests.Extensions.svg)](https://www.nuget.org/packages/SimplyWorks.CloudFiles.LocalTests.Extensions/) |
 
 ## Introduction
 
@@ -25,6 +27,7 @@
 - **☁️ Azure Blob Storage**
 - **🌐 Google Cloud Storage**
 - **🔶 Oracle Cloud Storage**
+- **🧪 Local Filesystem** — for testing and local development only
 
 The library provides both core functionality and ASP.NET Core dependency injection extensions for easy integration into web applications.
 
@@ -50,6 +53,11 @@ dotnet add package SimplyWorks.CloudFiles.GC.Extensions
 ### Oracle Cloud Storage
 ```bash
 dotnet add package SimplyWorks.CloudFiles.OC.Extensions
+```
+
+### Local Filesystem (Testing / Local Development Only)
+```bash
+dotnet add package SimplyWorks.CloudFiles.LocalTests.Extensions
 ```
 
 > Install the core package (e.g. `SimplyWorks.CloudFiles.S3`) only if you need to reference the service or options types directly without the DI extensions.
@@ -110,6 +118,12 @@ services.AddOracleCloudFiles(o => {
     o.BucketName = "your-bucket-name";
     o.NamespaceName = "your-namespace";
     o.RSAKey = "-----BEGIN RSA PRIVATE KEY-----\n...";
+});
+
+// Local Filesystem — testing and local development only
+services.AddLocalTestsCloudFiles(o => {
+    o.BucketName = "my-test-bucket";
+    // StoragePath is optional — defaults to {GetTempPath()}/SW.CloudFiles.LocalTests/{BucketName}
 });
 ```
 
@@ -338,6 +352,48 @@ services.AddAsCloudFiles(o => {
 ### Oracle Cloud Storage
 - OCI credentials (`UserId`, `TenantId`, `FingerPrint`, `RSAKey`) are written to temporary files on startup and used to authenticate via `ConfigFileAuthenticationDetailsProvider`.
 - `GetSignedUrl` creates a Pre-Authenticated Request (PAR) with read-only access.
+
+### Local Filesystem (Testing / Local Development Only)
+
+> ⚠️ **Do not use this provider in production.** It is designed exclusively for unit and integration tests and local development workflows.
+
+Files are stored on the local filesystem. The storage root is chosen using .NET's `Path.GetTempPath()` — so the correct OS temp directory is used automatically (`/tmp` on Linux/macOS, `%TEMP%` on Windows). The final path is `{GetTempPath()}/SW.CloudFiles.LocalTests/{BucketName}`.
+
+**File cleanup** is the caller's responsibility. On Linux and macOS the OS typically clears temp files on reboot, but on Windows temp files persist indefinitely. Always call `Cleanup()` in test teardown:
+
+```csharp
+// Startup / DI registration (e.g. in TestStartup.cs)
+services.AddLocalTestsCloudFiles(o => {
+    o.BucketName = "my-test-bucket";
+    // StoragePath is optional — you almost never need to set it
+});
+
+// MSTest example — inject the concrete type for teardown
+[ClassInitialize]
+public static void Init(TestContext ctx)
+{
+    // build _serviceProvider ...
+}
+
+[ClassCleanup]
+public static void Cleanup()
+{
+    _serviceProvider.GetRequiredService<CloudFilesService>().Cleanup();
+}
+```
+
+`GetUrl` and `GetSignedUrl` both return a `file://` URI. `GetSignedUrl` accepts the `expiry` parameter for interface compatibility but it has no effect.
+
+`OpenWrite` throws `NotImplementedException` (same as Oracle and Azure).
+
+**Overriding the storage path** — only needed for special scenarios such as Docker bind-mounts or CI artifact collection:
+
+```csharp
+services.AddLocalTestsCloudFiles(o => {
+    o.BucketName = "my-test-bucket";
+    o.StoragePath = "/mnt/ci-artifacts/cloudfiles"; // absolute path, any OS
+});
+```
 
 ## Interface Reference
 

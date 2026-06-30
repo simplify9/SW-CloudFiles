@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-SW.CloudFiles is a multi-cloud file storage abstraction library for .NET 8. It provides a unified `ICloudFilesService` interface (defined in `SimplyWorks.PrimitiveTypes`) implemented across four cloud providers: AWS S3, Azure Blob Storage, Google Cloud Storage, and Oracle Cloud Object Storage.
+SW.CloudFiles is a multi-cloud file storage abstraction library for .NET 8. It provides a unified `ICloudFilesService` interface (defined in `SimplyWorks.PrimitiveTypes`) implemented across four cloud providers — AWS S3, Azure Blob Storage, Google Cloud Storage, and Oracle Cloud Object Storage — plus a local filesystem provider intended for testing and local development.
 
 ## Build & Test Commands
 
@@ -37,6 +37,7 @@ Each cloud provider is split into two packages:
 | `SW.CloudFiles.AS/` | `SW.CloudFiles.AS.Extensions/` | `SimplyWorks.CloudFiles.AS` |
 | `SW.CloudFiles.GC/` | `SW.CloudFiles.GC.Extensions/` | `SimplyWorks.CloudFiles.GC` |
 | `SW.CloudFiles.OC/` | `SW.CloudFiles.OC.Extensions/` | `SimplyWorks.CloudFiles.OC` |
+| `SW.CloudFiles.LocalTests/` | `SW.CloudFiles.LocalTests.Extensions/` | `SimplyWorks.CloudFiles.LocalTests` *(testing only)* |
 
 - **Core projects** contain `CloudFilesService` (implements `ICloudFilesService`) and provider-specific `Options` class.
 - **Extensions projects** contain `IServiceCollectionExtensions` for ASP.NET Core DI registration and helper extension methods for creating SDK clients from options.
@@ -92,6 +93,7 @@ Three providers automatically create delete rules for temp-prefix objects at DI 
 | GCS | GCS Bucket Lifecycle API (`PatchBucket`) | `GoogleCloudFilesOptions.DisableAutoLifecycle = true` |
 | Oracle | OCI Object Lifecycle Policy API (`PutObjectLifecyclePolicy`) | `OracleCloudFilesOptions.DisableAutoLifecycle = true` |
 | Azure | **Not automatic** — ARM plane required | N/A (property exists but is no-op) |
+| LocalTests | N/A — call `CloudFilesService.Cleanup()` in test teardown | N/A |
 
 Lifecycle prefixes: `temp1/` (1 day), `temp7/` (7 days), `temp30/` (30 days), `temp365/` (365 days).
 
@@ -104,6 +106,10 @@ S3 and GCS also auto-create the bucket if it does not exist.
 ### Oracle-Specific: Config File Auth
 
 `AddOracleCloudFiles` writes PEM and OCI config files to the entry assembly directory, sets `OracleCloudFilesOptions.ConfigPath`, then creates a temporary `ObjectStorageClient` for lifecycle setup if enabled. The service constructor also creates its own `ObjectStorageClient` from `ConfigPath`.
+
+### LocalTests Provider
+
+`AddLocalTestsCloudFiles` registers `CloudFilesService` (concrete) as a singleton **in addition to** the `ICloudFilesService` interface alias, so test classes can inject `CloudFilesService` directly and call `Cleanup()` in teardown. Storage root defaults to `Path.GetTempPath()/SW.CloudFiles.LocalTests/{BucketName}` via `LocalTestsCloudFilesOptions.ResolvedStoragePath`. Metadata is persisted as sidecar `.meta.json` files alongside each stored blob. `GetSignedUrl` returns the same `file://` URI as `GetUrl`. `OpenWrite` throws `NotImplementedException`.
 
 ## Key Dependencies
 

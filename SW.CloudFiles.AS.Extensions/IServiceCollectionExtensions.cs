@@ -33,7 +33,7 @@ public static class IServiceCollectionExtensions
         serviceCollection.AddSingleton(blobContainerClient);
         serviceCollection.AddSingleton(cloudFilesOptions);
         serviceCollection.AddSingleton<CloudFilesOptions>(cloudFilesOptions);
-        serviceCollection.AddTransient<ICloudFilesService, CloudFilesService>();
+        serviceCollection.AddSingleton<ICloudFilesService, CloudFilesService>();
         return serviceCollection;
     }
 }

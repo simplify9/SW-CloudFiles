@@ -111,6 +111,21 @@ S3 and GCS also auto-create the bucket if it does not exist.
 
 `AddLocalTestsCloudFiles` registers `CloudFilesService` (concrete) as a singleton **in addition to** the `ICloudFilesService` interface alias, so test classes can inject `CloudFilesService` directly and call `Cleanup()` in teardown. Storage root defaults to `Path.GetTempPath()/SW.CloudFiles.LocalTests/{BucketName}` via `LocalTestsCloudFilesOptions.ResolvedStoragePath`. Metadata is persisted as sidecar `.meta.json` files alongside each stored blob. `GetSignedUrl` returns the same `file://` URI as `GetUrl`. `OpenWrite` throws `NotImplementedException`.
 
+## Known Issues / DI Lifetime Audit (2026-08-25)
+
+A production incident on 2026-08-25 (invoice-attachment and shipment-label uploads hanging ~1 minute then failing) traced back to the S3 provider building a brand-new `AmazonS3Client` on every DI resolution (`ICloudFilesService` was `AddTransient`) with no explicit timeout, so any latency to the storage endpoint compounded through the AWS SDK's default ~100s timeout and several backoff retries. Fixed in 8.1.11 (S3 provider): `ICloudFilesService` is now `AddSingleton`, and `S3CloudFilesOptions.TimeoutSeconds`/`MaxErrorRetry` (defaults 15/2) are configurable via the `CloudFiles` config section or the `AddS3CloudFiles(options => ...)` delegate.
+
+Prompted by that incident, the other three network-backed providers were audited for the same class of bug (fresh client construction on every resolution instead of reusing a pooled, thread-safe SDK client):
+
+- **Azure (`SW.CloudFiles.AS`) — same bug, and worse. Fixed alongside S3.** `ICloudFilesService` was also `AddTransient`, and `CloudFilesService`'s constructor called `cloudFilesOptions.CreateClient()` itself rather than using the `BlobContainerClient` the DI extension registered as a singleton — that singleton registration was dead code, never actually injected anywhere. Worse than the S3 case: in the non-managed-identity (shared-key) auth path, `CreateClient()` does a **synchronous, blocking `GetBlobContainers()` list call** plus an existence check — a real network round-trip, not just a fresh TCP/TLS handshake — on every single construction. Fixed: `CloudFilesService` now takes `BlobContainerClient` as a constructor parameter (reusing the singleton), and `ICloudFilesService` is registered `AddSingleton`.
+- **Oracle (`SW.CloudFiles.OC`) — milder version, fixed alongside S3.** Was `AddScoped` (so only once per HTTP request rather than per resolution, unlike S3/Azure's `AddTransient`), but the constructor still built a fresh `ObjectStorageClient` + `UploadManager` per request scope, including a `ConfigFileAuthenticationDetailsProvider` re-reading the PEM/config file from disk each time. Fixed: registered `AddSingleton` instead, so the client is built once for the process lifetime.
+- **Google Cloud (`SW.CloudFiles.GC`) — already correct, no change needed.** `ICloudFilesService` is `AddScoped`, but the actual `StorageClient`/`UrlSigner` doing the I/O are `AddSingleton` and injected in — no repeated client construction regardless of the wrapper service's lifetime. This is the reference-correct pattern the other providers now follow.
+- **LocalTests** — file-based, no network client involved, not applicable.
+
+None of Azure/GCS/Oracle are referenced by any Traxis service (only the S3 provider is, via `AddS3CloudFiles()` in all 8 backend microservices) — this was pure library-quality debt with no live-incident urgency, unlike the S3 fix.
+
+Note: `SW.CloudFiles.AS.UnitTest` and `SW.CloudFiles.OC.UnitTest` fail locally regardless of these changes (confirmed by reverting and re-running) — they appear to be integration tests requiring live cloud credentials, consistent with CI's `run-tests: 'false'` in `nuget-publish.yml`. Not a regression from this audit.
+
 ## Key Dependencies
 
 - `SimplyWorks.PrimitiveTypes` v8.1.3 — shared interface and base types (all providers)

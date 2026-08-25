@@ -327,11 +327,20 @@ All four providers support `GetSignedUrl(key, expiry)`:
 ### S3-Compatible Storage
 - Works with AWS S3, DigitalOcean Spaces, MinIO, and any S3-compatible service.
 - Bucket is created automatically if it does not exist.
+- The underlying `AmazonS3Client` is built once and reused for the life of the process (`ICloudFilesService` is registered as a singleton) rather than per call.
+- `TimeoutSeconds` (default `15`) and `MaxErrorRetry` (default `2`) on `S3CloudFilesOptions` bound the client's per-request timeout and automatic retry count, so a genuine outage on the storage endpoint fails fast instead of hanging on the AWS SDK's much longer defaults:
+  ```csharp
+  services.AddS3CloudFiles(o => {
+      o.TimeoutSeconds = 20;
+      o.MaxErrorRetry = 1;
+  });
+  ```
 
 ### Azure Blob Storage
 - Container is created automatically if it does not exist.
 - **Managed Identity**: Set `Managed = true`. Optionally set `ManagedIdentityClientId` for a user-assigned identity; omit it to use the system-assigned identity or ambient `DefaultAzureCredential`.
 - **Public URL override**: If you connect via private link (`ServiceUrl`) but need public-facing URLs, set `PublicServiceUrl` to the standard public endpoint (e.g. `https://account.blob.core.windows.net`).
+- The underlying `BlobContainerClient` is built once and reused for the life of the process (`ICloudFilesService` is registered as a singleton) rather than per call.
 
 ```csharp
 // Managed Identity example
@@ -352,6 +361,7 @@ services.AddAsCloudFiles(o => {
 ### Oracle Cloud Storage
 - OCI credentials (`UserId`, `TenantId`, `FingerPrint`, `RSAKey`) are written to temporary files on startup and used to authenticate via `ConfigFileAuthenticationDetailsProvider`.
 - `GetSignedUrl` creates a Pre-Authenticated Request (PAR) with read-only access.
+- The underlying `ObjectStorageClient` is built once and reused for the life of the process (`ICloudFilesService` is registered as a singleton) rather than per request.
 
 ### Local Filesystem (Testing / Local Development Only)
 

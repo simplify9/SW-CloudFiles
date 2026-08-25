@@ -14,10 +14,10 @@ using SW.PrimitiveTypes;
 namespace SW.CloudFiles.AS;
 
 /// <summary>Azure Blob Storage implementation of <see cref="ICloudFilesService"/>.</summary>
-public class CloudFilesService(AzureCloudFilesOptions cloudFilesOptions) : IDisposable, ICloudFilesService
+public class CloudFilesService(AzureCloudFilesOptions cloudFilesOptions, BlobContainerClient blobContainerClient) : IDisposable, ICloudFilesService
 {
     private readonly AzureCloudFilesOptions cloudFilesOptions = cloudFilesOptions;
-    private readonly BlobContainerClient blobContainerClient = cloudFilesOptions.CreateClient();
+    private readonly BlobContainerClient blobContainerClient = blobContainerClient;
 
     /// <inheritdoc/>
     public async Task<RemoteBlob> WriteAsync(Stream inputStream, WriteFileSettings settings)

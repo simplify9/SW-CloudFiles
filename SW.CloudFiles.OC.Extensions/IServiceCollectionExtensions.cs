@@ -51,7 +51,7 @@ key_file={pemPath}");
         if (!cloudFilesOptions.DisableAutoLifecycle)
             EnsureLifecycleRules(cloudFilesOptions);
 
-        serviceCollection.AddScoped<ICloudFilesService, CloudFilesService>();
+        serviceCollection.AddSingleton<ICloudFilesService, CloudFilesService>();
         serviceCollection.AddSingleton(cloudFilesOptions);
         serviceCollection.AddSingleton<CloudFilesOptions>(cloudFilesOptions);
         return serviceCollection;

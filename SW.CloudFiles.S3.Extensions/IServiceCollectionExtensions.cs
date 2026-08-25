@@ -130,7 +130,7 @@ public static class IServiceCollectionExtensions
         }
 
         serviceCollection.AddSingleton<CloudFilesOptions>(cloudFilesOptions);
-        serviceCollection.AddTransient<ICloudFilesService, CloudFilesService>();
+        serviceCollection.AddSingleton<ICloudFilesService, CloudFilesService>();
 
         return serviceCollection;
     }

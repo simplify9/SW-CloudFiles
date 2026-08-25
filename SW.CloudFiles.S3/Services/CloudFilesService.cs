@@ -20,7 +20,7 @@ public class CloudFilesService : IDisposable, ICloudFilesService
     public CloudFilesService(CloudFilesOptions cloudFilesOptions)
     {
         this.cloudFilesOptions = cloudFilesOptions;
-        client = cloudFilesOptions.CreateClient();
+        client = ((S3CloudFilesOptions)cloudFilesOptions).CreateClient();
     }
 
     /// <inheritdoc/>

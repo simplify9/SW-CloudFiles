@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <PackageId>SimplyWorks.CloudFiles.S3.Extensions</PackageId>
     <Description>ASP.NET Core dependency injection extensions for SimplyWorks.CloudFiles.S3. Provides easy configuration and registration of S3-compatible storage services with automatic bucket creation and lifecycle management. See full documentation at https://github.com/simplify9/SW-CloudFiles</Description>
     <PackageTags>cloud storage;s3;aws;digitalocean;minio;aspnet core;dependency injection;extensions</PackageTags>
@@ -15,7 +15,7 @@
     <PackageIcon>icon.png</PackageIcon>
     <RootNamespace>SW.CloudFiles.Extensions</RootNamespace>
       <GenerateDocumentationFile>true</GenerateDocumentationFile>
-        <AssemblyVersion>8.0.0.0</AssemblyVersion>
+        <AssemblyVersion>10.0.0.0</AssemblyVersion>
     </PropertyGroup>
 
   <ItemGroup>

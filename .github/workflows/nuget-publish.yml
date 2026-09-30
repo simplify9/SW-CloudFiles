@@ -28,9 +28,9 @@ jobs:
         SW.CloudFiles.GC.Extensions/SW.CloudFiles.GC.Extensions.csproj
         SW.CloudFiles.LocalTests/SW.CloudFiles.LocalTests.csproj
         SW.CloudFiles.LocalTests.Extensions/SW.CloudFiles.LocalTests.Extensions.csproj
-      major-version: '8'
-      minor-version: '1'
-      dotnet-version: '8.0.x'
+      major-version: '10'
+      minor-version: '0'
+      dotnet-version: '10.0.x'
       run-tests: false
       test-projects: '**/*UnitTests/*.csproj'
     secrets:

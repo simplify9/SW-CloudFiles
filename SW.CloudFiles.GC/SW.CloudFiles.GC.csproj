@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net8.0</TargetFramework>
+        <TargetFramework>net10.0</TargetFramework>
         <PackageId>SimplyWorks.CloudFiles.GC</PackageId>
         <Description>Multi-cloud storage abstraction library for Google Cloud Storage. Provides unified file operations with service account authentication. Part of SW.CloudFiles suite supporting S3, Azure, and Oracle Cloud. See full documentation at https://github.com/simplify9/SW-CloudFiles</Description>
         <PackageTags>cloud storage;google cloud;gcp;google cloud storage;file upload;abstraction</PackageTags>
@@ -14,12 +14,12 @@
         <RepositoryUrl>https://github.com/simplify9/SW-CloudFiles</RepositoryUrl>
         <PackageIcon>icon.png</PackageIcon>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
-        <AssemblyVersion>8.0.0.0</AssemblyVersion>
+        <AssemblyVersion>10.0.0.0</AssemblyVersion>
     </PropertyGroup>
 
     <ItemGroup>
       <PackageReference Include="Google.Cloud.Storage.V1" Version="4.11.0" />
-      <PackageReference Include="SimplyWorks.PrimitiveTypes" Version="8.1.3" />
+      <PackageReference Include="SimplyWorks.PrimitiveTypes" Version="10.0.0" />
     </ItemGroup>
     <ItemGroup>
         <None Include="../icon.png">

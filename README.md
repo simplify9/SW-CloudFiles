@@ -19,7 +19,7 @@
 
 ## Introduction
 
-**SW.CloudFiles** is a unified, multi-cloud storage abstraction library for .NET 8 that provides a consistent interface across different cloud storage providers. It simplifies cloud storage operations by offering a single API that works with multiple cloud providers without vendor lock-in.
+**SW.CloudFiles** is a unified, multi-cloud storage abstraction library for .NET 10 that provides a consistent interface across different cloud storage providers. It simplifies cloud storage operations by offering a single API that works with multiple cloud providers without vendor lock-in.
 
 ### Supported Cloud Providers
 
@@ -424,7 +424,7 @@ public interface ICloudFilesService
 
 ## Requirements
 
-- **.NET 8.0** or later
+- **.NET 10.0** or later
 - Appropriate cloud provider account and credentials
 - [SimplyWorks.PrimitiveTypes](https://github.com/simplify9/PrimitiveTypes)
 

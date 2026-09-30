@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net8.0</TargetFramework>
+        <TargetFramework>net10.0</TargetFramework>
         <PackageId>SimplyWorks.CloudFiles.LocalTests.Extensions</PackageId>
         <Description>ASP.NET Core dependency injection extensions for SimplyWorks.CloudFiles.LocalTests. FOR TESTING AND LOCAL DEVELOPMENT ONLY — do not use in production. Registers the local filesystem ICloudFilesService and exposes Cleanup() for test teardown.</Description>
         <PackageTags>cloud storage;local;filesystem;testing;development;aspnet core;dependency injection;extensions</PackageTags>
@@ -15,7 +15,7 @@
         <PackageIcon>icon.png</PackageIcon>
         <RootNamespace>SW.CloudFiles.Extensions</RootNamespace>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
-        <AssemblyVersion>8.0.0.0</AssemblyVersion>
+        <AssemblyVersion>10.0.0.0</AssemblyVersion>
     </PropertyGroup>
 
     <ItemGroup>

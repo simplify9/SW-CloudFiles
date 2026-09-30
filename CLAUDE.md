@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-SW.CloudFiles is a multi-cloud file storage abstraction library for .NET 8. It provides a unified `ICloudFilesService` interface (defined in `SimplyWorks.PrimitiveTypes`) implemented across four cloud providers — AWS S3, Azure Blob Storage, Google Cloud Storage, and Oracle Cloud Object Storage — plus a local filesystem provider intended for testing and local development.
+SW.CloudFiles is a multi-cloud file storage abstraction library for .NET 10. It provides a unified `ICloudFilesService` interface (defined in `SimplyWorks.PrimitiveTypes`) implemented across four cloud providers — AWS S3, Azure Blob Storage, Google Cloud Storage, and Oracle Cloud Object Storage — plus a local filesystem provider intended for testing and local development.
 
 ## Build & Test Commands
 

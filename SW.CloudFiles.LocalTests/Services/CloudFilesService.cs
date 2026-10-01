@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using SW.PrimitiveTypes;
 
@@ -20,7 +21,7 @@ namespace SW.CloudFiles.LocalTests;
 /// <see cref="Cleanup"/> in your test teardown to remove all files written during the
 /// test run.
 /// </remarks>
-public class CloudFilesService(LocalTestsCloudFilesOptions options) : ICloudFilesService, IDisposable
+public class CloudFilesService(LocalTestsCloudFilesOptions options) : ICloudFilesService, ICloudFilesLifecycle, IDisposable
 {
     private readonly string _root = options.ResolvedStoragePath;
 
@@ -171,4 +172,11 @@ public class CloudFilesService(LocalTestsCloudFilesOptions options) : ICloudFile
 
     /// <inheritdoc/>
     public void Dispose() { }
+
+    /// <summary>
+    /// Nothing deletes files on the local filesystem by age: the temp-prefix rules the cloud providers
+    /// create don't exist here, which is what this reports.
+    /// </summary>
+    public Task<CloudFilesLifecycle> GetLifecycleAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult(new CloudFilesLifecycle { Provider = "Local", Bucket = options.BucketName });
 }

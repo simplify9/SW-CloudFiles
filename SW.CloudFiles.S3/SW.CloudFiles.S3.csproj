@@ -33,8 +33,13 @@
     </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="SW.CloudFiles.S3.Extensions" />
+    <InternalsVisibleTo Include="SW.CloudFiles.UnitTests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="AWSSDK.S3" Version="3.7.412.2" />
-    <PackageReference Include="SimplyWorks.PrimitiveTypes" Version="10.0.0" />
+    <PackageReference Include="SimplyWorks.PrimitiveTypes" Version="10.0.1" />
   </ItemGroup>
   <ItemGroup>
     <None Include="../icon.png">

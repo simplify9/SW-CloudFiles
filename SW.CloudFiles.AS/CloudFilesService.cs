@@ -2,8 +2,12 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
+using Azure;
 using Azure.Identity;
+using Azure.ResourceManager.Storage;
+using Azure.ResourceManager.Storage.Models;
 using Azure.Storage;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
@@ -13,11 +17,14 @@ using SW.PrimitiveTypes;
 
 namespace SW.CloudFiles.AS;
 
-/// <summary>Azure Blob Storage implementation of <see cref="ICloudFilesService"/>.</summary>
-public class CloudFilesService(AzureCloudFilesOptions cloudFilesOptions, BlobContainerClient blobContainerClient) : IDisposable, ICloudFilesService
+/// <summary>Azure Blob Storage implementation of <see cref="ICloudFilesService"/> and <see cref="ICloudFilesLifecycle"/>.</summary>
+public class CloudFilesService(AzureCloudFilesOptions cloudFilesOptions, BlobContainerClient blobContainerClient)
+    : IDisposable, ICloudFilesService, ICloudFilesLifecycle
 {
     private readonly AzureCloudFilesOptions cloudFilesOptions = cloudFilesOptions;
     private readonly BlobContainerClient blobContainerClient = blobContainerClient;
+    private readonly Lazy<StorageAccountManagementPolicyResource> managementPolicy =
+        new(cloudFilesOptions.ManagementPolicy);
 
     /// <inheritdoc/>
     public async Task<RemoteBlob> WriteAsync(Stream inputStream, WriteFileSettings settings)
@@ -179,6 +186,36 @@ public class CloudFilesService(AzureCloudFilesOptions cloudFilesOptions, BlobCon
         var blob = blobContainerClient.GetBlobClient(key);
         await blob.DeleteAsync(DeleteSnapshotsOption.IncludeSnapshots);
         return true;
+    }
+
+    /// <inheritdoc/>
+    public async Task<CloudFilesLifecycle> GetLifecycleAsync(CancellationToken cancellationToken = default)
+    {
+        var lifecycle = new CloudFilesLifecycle { Provider = "Azure", Bucket = cloudFilesOptions.BucketName };
+        if (!cloudFilesOptions.CanManage())
+        {
+            lifecycle.Unavailable =
+                "Azure deletes blobs through the storage account's lifecycle management policy, which can only be " +
+                "read or created once CloudFiles:SubscriptionId and CloudFiles:ResourceGroupName are set, with a " +
+                "role allowed to manage it (such as Storage Account Contributor). Until then the temp rules aren't added, " +
+                "and a policy set up by hand can't be read.";
+            return lifecycle;
+        }
+
+        IEnumerable<ManagementPolicyRule> rules;
+        try
+        {
+            rules = (await managementPolicy.Value.GetAsync(cancellationToken)).Value.Data.Rules;
+        }
+        catch (RequestFailedException ex) when (ex.Status == 404 && ex.ErrorCode == "ManagementPolicyNotFound")
+        {
+            // An account that never had a policy has no rules. Any other 404 — a wrong account or
+            // resource group — is a real error and is left to surface.
+            rules = new List<ManagementPolicyRule>();
+        }
+
+        lifecycle.Rules = AzureLifecycleRules.ToDeletionRules(rules, cloudFilesOptions.BucketName);
+        return lifecycle;
     }
 
     /// <inheritdoc/>

@@ -3,15 +3,16 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Net;
+using System.Threading;
 using System.Threading.Tasks;
 using Google.Cloud.Storage.V1;
 using SW.PrimitiveTypes;
 
 namespace SW.CloudFiles.GC;
 
-/// <summary>Google Cloud Storage implementation of <see cref="ICloudFilesService"/>.</summary>
+/// <summary>Google Cloud Storage implementation of <see cref="ICloudFilesService"/> and <see cref="ICloudFilesLifecycle"/>.</summary>
 public class CloudFilesService(GoogleCloudFilesOptions options, StorageClient storageClient, UrlSigner urlSigner)
-    : ICloudFilesService
+    : ICloudFilesService, ICloudFilesLifecycle
 {
     /// <inheritdoc/>
     public async Task<RemoteBlob> WriteAsync(Stream inputStream, WriteFileSettings settings)
@@ -109,5 +110,18 @@ public class CloudFilesService(GoogleCloudFilesOptions options, StorageClient st
         {
             return false;
         }
+    }
+
+    /// <inheritdoc/>
+    public async Task<CloudFilesLifecycle> GetLifecycleAsync(CancellationToken cancellationToken = default)
+    {
+        var bucket = await storageClient.GetBucketAsync(options.BucketName, cancellationToken: cancellationToken);
+
+        return new CloudFilesLifecycle
+        {
+            Provider = "Google",
+            Bucket = options.BucketName,
+            Rules = GoogleLifecycleRules.ToDeletionRules(bucket.Lifecycle?.Rule)
+        };
     }
 }

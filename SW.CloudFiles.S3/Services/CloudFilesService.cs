@@ -4,13 +4,15 @@ using SW.PrimitiveTypes;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace SW.CloudFiles.S3;
 
-/// <summary>S3-compatible implementation of <see cref="ICloudFilesService"/>.</summary>
-public class CloudFilesService : IDisposable, ICloudFilesService
+/// <summary>S3-compatible implementation of <see cref="ICloudFilesService"/> and <see cref="ICloudFilesLifecycle"/>.</summary>
+public class CloudFilesService : IDisposable, ICloudFilesService, ICloudFilesLifecycle
 {
     private const string metadataPrefix = "x-amz-meta-";
     private readonly CloudFilesOptions cloudFilesOptions;
@@ -234,6 +236,31 @@ public class CloudFilesService : IDisposable, ICloudFilesService
 
         return result;
 
+    }
+
+    /// <inheritdoc/>
+    public async Task<CloudFilesLifecycle> GetLifecycleAsync(CancellationToken cancellationToken = default)
+    {
+        IEnumerable<LifecycleRule> rules;
+        try
+        {
+            var response = await client.GetLifecycleConfigurationAsync(new GetLifecycleConfigurationRequest
+            {
+                BucketName = cloudFilesOptions.BucketName
+            }, cancellationToken);
+            rules = response.Configuration?.Rules ?? Enumerable.Empty<LifecycleRule>();
+        }
+        catch (AmazonS3Exception ex) when (ex.ErrorCode == "NoSuchLifecycleConfiguration")
+        {
+            rules = Enumerable.Empty<LifecycleRule>();
+        }
+
+        return new CloudFilesLifecycle
+        {
+            Provider = "S3",
+            Bucket = cloudFilesOptions.BucketName,
+            Rules = S3LifecycleRules.ToDeletionRules(rules)
+        };
     }
 
     /// <inheritdoc/>

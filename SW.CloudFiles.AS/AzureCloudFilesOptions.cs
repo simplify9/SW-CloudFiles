@@ -27,10 +27,29 @@ public class AzureCloudFilesOptions : CloudFilesOptions
     public string PublicServiceUrl { get; set; }
 
     /// <summary>
-    /// Reserved for future use. Azure Blob Storage lifecycle management policies require the
-    /// Azure Resource Manager (ARM) plane and cannot be configured automatically through
-    /// the data-plane SDK. Configure lifecycle rules via the Azure Portal, Azure CLI
-    /// (<c>az storage account management-policy create</c>), or ARM templates.
+    /// When true, skips creating the temp-prefix delete rules (temp1/, temp7/, temp30/, temp365/) in the
+    /// storage account's lifecycle management policy. Only applies once <see cref="SubscriptionId"/> and
+    /// <see cref="ResourceGroupName"/> are set: the policy lives on the Azure Resource Manager plane, not
+    /// the blob endpoint, so without them nothing can be created and nothing deletes temp files.
     /// </summary>
     public bool DisableAutoLifecycle { get; set; }
+
+    /// <summary>
+    /// Subscription of the storage account, for its lifecycle management policy. Leave unset and the
+    /// policy is neither created nor read. The identity used — the managed identity, or a service principal
+    /// from <c>AZURE_TENANT_ID</c> / <c>AZURE_CLIENT_ID</c> / <c>AZURE_CLIENT_SECRET</c> — needs
+    /// <c>Microsoft.Storage/storageAccounts/managementPolicies/read</c> and <c>/write</c>, for example the
+    /// Storage Account Contributor role; Storage Blob Data Contributor alone isn't enough.
+    /// </summary>
+    public string SubscriptionId { get; set; }
+
+    /// <summary>Resource group of the storage account. Required alongside <see cref="SubscriptionId"/>.</summary>
+    public string ResourceGroupName { get; set; }
+
+    /// <summary>
+    /// The storage account's name. Optional: taken from <see cref="CloudFilesOptions.AccessKeyId"/> with a
+    /// shared key, or from the first part of the service URL's host with a managed identity. Set it when
+    /// the service URL is a custom domain or a private link.
+    /// </summary>
+    public string StorageAccountName { get; set; }
 }

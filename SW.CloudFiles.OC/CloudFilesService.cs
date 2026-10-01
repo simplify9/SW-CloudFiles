@@ -2,10 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Oci.Common.Auth;
+using Oci.Common.Model;
 using Oci.ObjectstorageService;
 using Oci.ObjectstorageService.Models;
 using Oci.ObjectstorageService.Requests;
@@ -14,8 +17,8 @@ using SW.PrimitiveTypes;
 
 namespace SW.CloudFiles.OC
 {
-    /// <summary>Oracle Cloud Infrastructure Object Storage implementation of <see cref="ICloudFilesService"/>.</summary>
-    public class CloudFilesService : ICloudFilesService, IDisposable
+    /// <summary>Oracle Cloud Infrastructure Object Storage implementation of <see cref="ICloudFilesService"/> and <see cref="ICloudFilesLifecycle"/>.</summary>
+    public class CloudFilesService : ICloudFilesService, ICloudFilesLifecycle, IDisposable
     {
         private readonly OracleCloudFilesOptions _cloudFilesOptions;
         private readonly UploadManager _uploadManager;
@@ -182,6 +185,33 @@ namespace SW.CloudFiles.OC
                 _logger.LogError(e, "Failed to delete file");
                 return false;
             }
+        }
+
+        /// <inheritdoc/>
+        public async Task<CloudFilesLifecycle> GetLifecycleAsync(CancellationToken cancellationToken = default)
+        {
+            IEnumerable<ObjectLifecycleRule> rules;
+            try
+            {
+                var response = await _client.GetObjectLifecyclePolicy(new GetObjectLifecyclePolicyRequest
+                {
+                    BucketName = _cloudFilesOptions.BucketName,
+                    NamespaceName = _cloudFilesOptions.NamespaceName
+                }, cancellationToken: cancellationToken);
+                rules = response.ObjectLifecyclePolicy?.Items ?? new List<ObjectLifecycleRule>();
+            }
+            catch (OciException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+            {
+                // A bucket that never had a policy has none to return.
+                rules = new List<ObjectLifecycleRule>();
+            }
+
+            return new CloudFilesLifecycle
+            {
+                Provider = "Oracle",
+                Bucket = _cloudFilesOptions.BucketName,
+                Rules = OracleLifecycleRules.ToDeletionRules(rules)
+            };
         }
 
         /// <inheritdoc/>

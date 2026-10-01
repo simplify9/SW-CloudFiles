@@ -55,6 +55,7 @@ public static class IServiceCollectionExtensions
         serviceCollection.AddSingleton<CloudFilesOptions>(cloudFilesOptions);
         serviceCollection.AddSingleton<CloudFilesService>();
         serviceCollection.AddSingleton<ICloudFilesService>(sp => sp.GetRequiredService<CloudFilesService>());
+        serviceCollection.AddSingleton<ICloudFilesLifecycle>(sp => sp.GetRequiredService<CloudFilesService>());
 
         return serviceCollection;
     }

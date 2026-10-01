@@ -85,17 +85,21 @@ Configuration is read from the `"CloudFiles"` section in `appsettings.json` (`Cl
 
 ### Automatic Lifecycle Rules
 
-Three providers automatically create delete rules for temp-prefix objects at DI registration time. All three check for existing rules and only add missing ones.
+Every provider creates delete rules for temp-prefix objects at DI registration time, checks for existing rules and only adds missing (or disabled) ones, and writes every other rule back unchanged. Each also registers `ICloudFilesLifecycle` (PrimitiveTypes), which reads the rules back; the per-provider mapping lives in an internal static `*LifecycleRules` class with pure unit tests.
 
 | Provider | Mechanism | Opt-out |
 |----------|-----------|---------|
 | S3 | S3 Lifecycle Configuration API | `S3CloudFilesOptions.DisableAutoLifecycle = true` |
 | GCS | GCS Bucket Lifecycle API (`PatchBucket`) | `GoogleCloudFilesOptions.DisableAutoLifecycle = true` |
 | Oracle | OCI Object Lifecycle Policy API (`PutObjectLifecyclePolicy`) | `OracleCloudFilesOptions.DisableAutoLifecycle = true` |
-| Azure | **Not automatic** — ARM plane required | N/A (property exists but is no-op) |
+| Azure | Account lifecycle management policy via ARM (`Azure.ResourceManager.Storage` 1.6.2), only when `SubscriptionId` + `ResourceGroupName` are set | `AzureCloudFilesOptions.DisableAutoLifecycle = true` |
 | LocalTests | N/A — call `CloudFilesService.Cleanup()` in test teardown | N/A |
 
 Lifecycle prefixes: `temp1/` (1 day), `temp7/` (7 days), `temp30/` (30 days), `temp365/` (365 days).
+
+The S3 lifecycle API replaces the whole configuration on every write; before 10.0.1 `AddS3CloudFiles` sent only the missing temp rules and so deleted every other rule on the bucket. `S3LifecycleRules.WithTempRules` now returns the full merged set.
+
+`Azure.ResourceManager.Storage` is pinned to 1.6.2: 1.7+ needs an Azure.Core in which the Identity types moved into Core, which clashes with `Azure.Identity` 1.13 (CS0433) here and in every consuming app.
 
 S3 and GCS also auto-create the bucket if it does not exist.
 

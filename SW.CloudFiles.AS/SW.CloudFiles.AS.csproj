@@ -19,8 +19,11 @@
 
     <ItemGroup>
       <PackageReference Include="Azure.Identity" Version="1.13.2" />
+      <!-- 1.6.2, not the newest: 1.7+ needs an Azure.Core where the Identity types moved into Core,
+           which clashes with Azure.Identity 1.13 (CS0433) here and in every app referencing both. -->
+      <PackageReference Include="Azure.ResourceManager.Storage" Version="1.6.2" />
       <PackageReference Include="Azure.Storage.Blobs" Version="12.23.0" />
-        <PackageReference Include="SimplyWorks.PrimitiveTypes" Version="10.0.0" />
+        <PackageReference Include="SimplyWorks.PrimitiveTypes" Version="10.0.1" />
     </ItemGroup>
 
     <ItemGroup>
@@ -29,4 +32,9 @@
             <PackagePath></PackagePath>
         </None>
     </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="SW.CloudFiles.AS.UnitTest" />
+    <InternalsVisibleTo Include="SW.CloudFiles.AS.Extensions" />
+  </ItemGroup>
+
 </Project>

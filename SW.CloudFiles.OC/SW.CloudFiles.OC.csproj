@@ -20,7 +20,7 @@
     <ItemGroup>
       <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.12" />
       <PackageReference Include="OCI.DotNetSDK.Objectstorage" Version="101.2.0" />
-      <PackageReference Include="SimplyWorks.PrimitiveTypes" Version="10.0.0" />
+      <PackageReference Include="SimplyWorks.PrimitiveTypes" Version="10.0.1" />
     </ItemGroup>
     <ItemGroup>
         <None Include="../icon.png">
@@ -28,4 +28,8 @@
             <PackagePath></PackagePath>
         </None>
     </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="SW.CloudFiles.OC.UnitTest" />
+  </ItemGroup>
+
 </Project>

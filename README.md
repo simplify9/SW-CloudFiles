@@ -267,7 +267,7 @@ public class FilesController : ControllerBase
 
 ## Automatic Lifecycle Management
 
-Three of the four providers automatically create **delete lifecycle rules** for temp-prefix objects on startup. This is useful for objects that are only needed temporarily.
+Every provider creates **delete lifecycle rules** for temp-prefix objects on startup — Azure once it can reach the storage account's policy (see below). This is useful for objects that are only needed temporarily.
 
 | Prefix | Expiry |
 |--------|--------|
@@ -276,7 +276,18 @@ Three of the four providers automatically create **delete lifecycle rules** for 
 | `temp30/`  | 30 days |
 | `temp365/` | 365 days |
 
-Rules are only added if they don't already exist — existing rules are never modified or removed.
+Rules are only added if they don't already exist (a disabled temp rule is switched back on). Every other rule on the bucket is kept as it is. Before 10.0.1 the S3 provider wrote only the missing temp rules, which replaced the bucket's whole configuration and deleted any other rules on it.
+
+### Reading the rules back
+
+Each provider also registers `ICloudFilesLifecycle` (from `SimplyWorks.PrimitiveTypes`), which reports the bucket's deletion rules as the storage service has them — prefix, days and whether each is enabled — so an app can say how long a file under a given key is kept:
+
+```csharp
+var lifecycle = await serviceProvider.GetRequiredService<ICloudFilesLifecycle>().GetLifecycleAsync();
+var rule = lifecycle.RuleFor("temp30/invoices/123.pdf");   // null when nothing deletes it
+```
+
+Only rules that delete by age are reported; rules that move objects to another tier, delete on a date, or only reach tagged objects are left out. `Unavailable` explains when the rules can't be known without more configuration (Azure without its policy settings).
 
 ### Disabling Lifecycle Management
 
@@ -297,6 +308,11 @@ services.AddOracleCloudFiles(o => {
     // ... other config
     o.DisableAutoLifecycle = true;
 });
+
+services.AddAsCloudFiles(o => {
+    // ... other config
+    o.DisableAutoLifecycle = true;
+});
 ```
 
 ### Provider Support
@@ -306,7 +322,7 @@ services.AddOracleCloudFiles(o => {
 | S3 | ✅ Automatic | Rules applied via S3 Lifecycle Configuration API |
 | Google Cloud | ✅ Automatic | Rules applied via GCS Bucket Lifecycle API; bucket is created if it doesn't exist |
 | Oracle Cloud | ✅ Automatic | Rules applied via OCI Object Lifecycle Policy API |
-| Azure Blob | ⚠️ Manual | Azure lifecycle management requires the Azure Resource Manager (ARM) plane, which is separate from the data-plane SDK used by this library. Configure lifecycle rules via the [Azure Portal](https://learn.microsoft.com/en-us/azure/storage/blobs/lifecycle-management-overview), Azure CLI (`az storage account management-policy create`), or ARM templates. |
+| Azure Blob | ✅ Automatic, once configured | The rules live in the storage account's [lifecycle management policy](https://learn.microsoft.com/en-us/azure/storage/blobs/lifecycle-management-overview), on the Azure Resource Manager plane. Set `SubscriptionId` and `ResourceGroupName` (and `StorageAccountName` when the service URL is a custom domain or private link). The managed identity, or a service principal in `AZURE_TENANT_ID` / `AZURE_CLIENT_ID` / `AZURE_CLIENT_SECRET`, needs `Microsoft.Storage/storageAccounts/managementPolicies/read` and `write` — Storage Account Contributor has them; Storage Blob Data Contributor doesn't. Rules are named `{container}-temp30` and filtered to `{container}/temp30/`, so other containers' rules are untouched. Changes can take up to 24 hours to apply. Without the two settings nothing is created and nothing deletes temp files. |
 
 ## Signed URLs
 

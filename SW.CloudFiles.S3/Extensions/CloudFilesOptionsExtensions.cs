@@ -28,6 +28,6 @@ public static class CloudFilesOptionsExtensions
             ResponseChecksumValidation = ResponseChecksumValidation.WHEN_REQUIRED
         };
 
-        return new AmazonS3Client(cloudFilesOptions.AccessKeyId, cloudFilesOptions.SecretAccessKey, clientConfig);
+        return new CloudFilesS3Client(cloudFilesOptions.AccessKeyId, cloudFilesOptions.SecretAccessKey, clientConfig);
     }
 }

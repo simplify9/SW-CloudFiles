@@ -103,6 +103,10 @@ The S3 lifecycle API replaces the whole configuration on every write; before 10.
 
 S3 and GCS also auto-create the bucket if it does not exist.
 
+### S3: compatibility with non-AWS stores
+
+`CreateClient()` sets `RequestChecksumCalculation`/`ResponseChecksumValidation` to `WHEN_REQUIRED`: the AWSSDK.S3 3.7.410+ default sends PutObject bodies as `aws-chunked` with a trailing CRC32, and stores that don't decode it (SeaweedFS, older MinIO) save the chunk framing into the object. It also returns a `CloudFilesS3Client`, whose pipeline drops the `x-amz-expiration` response header before unmarshalling, because the SDK throws `FormatException` on a malformed expiry date after the request has already succeeded. `S3CompatibleStoreTests` needs Docker (SeaweedFS via Testcontainers); `S3ExpirationHeaderTests` uses a local `HttpListener`.
+
 ### GCS: `StorageClient` and `UrlSigner` via DI
 
 `CloudFilesService` (GCS) takes `GoogleCloudFilesOptions`, `StorageClient`, and `UrlSigner` via constructor injection. `AddGoogleCloudFiles` registers all three as singletons. `BuildGoogleCloudStorageClient()` and `BuildUrlSigner()` are public extension methods on `GoogleCloudFilesOptions` in the Extensions project.

@@ -129,19 +129,32 @@ namespace SW.CloudFiles.OC
         /// <inheritdoc/>
         public async Task<IEnumerable<CloudFileInfo>> ListAsync(string prefix)
         {
-            var response = await _client.ListObjects(new ListObjectsRequest
-            {
-                BucketName = _cloudFilesOptions.BucketName,
-                NamespaceName = _cloudFilesOptions.NamespaceName,
-                Prefix = prefix,
-                Fields = "size"
-            });
+            // ListObjects returns one page (1,000 objects by default); NextStartWith names the first
+            // object of the next page and is null once the listing is complete.
+            var result = new List<CloudFileInfo>();
+            string start = null;
 
-            return response.ListObjects.Objects.Select(x => new CloudFileInfo
+            do
             {
-                Key = x.Name,
-                Size = x.Size ?? 0,
-            });
+                var response = await _client.ListObjects(new ListObjectsRequest
+                {
+                    BucketName = _cloudFilesOptions.BucketName,
+                    NamespaceName = _cloudFilesOptions.NamespaceName,
+                    Prefix = prefix,
+                    Start = start,
+                    Fields = "size"
+                });
+
+                result.AddRange(response.ListObjects.Objects.Select(x => new CloudFileInfo
+                {
+                    Key = x.Name,
+                    Size = x.Size ?? 0,
+                }));
+
+                start = response.ListObjects.NextStartWith;
+            } while (!string.IsNullOrEmpty(start));
+
+            return result;
         }
         /// <inheritdoc/>
         public async Task<IReadOnlyDictionary<string, string>> GetMetadataAsync(string key)

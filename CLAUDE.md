@@ -62,6 +62,8 @@ OpenWrite(WriteFileSettings) -> WriteWrapper
 
 Note: `GetSignedUrl` throws `NotImplementedException` in Azure and Oracle providers.
 
+`ListAsync` returns every object under the prefix on all providers. Before 10.0.4 the S3 and Oracle providers returned only the first page (1,000 keys) while Azure and GCS walked every page; S3 now follows `NextContinuationToken`, Oracle `NextStartWith` (`List_returns_every_object_beyond_the_first_page` covers S3 against SeaweedFS).
+
 ### Options Hierarchy
 
 `CloudFilesOptions` (base, from PrimitiveTypes) holds `AccessKeyId`, `SecretAccessKey`, `BucketName`, `ServiceUrl`. Provider-specific subclasses add their own fields:

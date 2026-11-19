@@ -31,6 +31,17 @@
 
 The library provides both core functionality and ASP.NET Core dependency injection extensions for easy integration into web applications.
 
+### Documentation
+
+| Page | Read it when |
+|------|--------------|
+| [Provider behaviour reference](docs/provider-behavior.md) | you need to know exactly what a method does on each provider: URLs, metadata keys, delete results, errors, memory use |
+| [S3-compatible stores](docs/s3-compatible-stores.md) | you use DigitalOcean Spaces, MinIO, SeaweedFS or another non-AWS store, or `AddS3CloudFiles` fails at startup |
+| [Evolving the contract](docs/evolving-the-contract.md) | you want to add a capability (copy, exists, range reads…) or change the interface |
+| [Changelog](CHANGELOG.md) | you are upgrading; entries marked **Behaviour change** alter what callers observe |
+
+The same method can still behave differently per provider (for example `OpenReadAsync` streams on S3 but buffers the whole object on Google, and `DeleteAsync` returns `true` for a missing key only on S3). Write portable code against the behaviour reference, not against one provider.
+
 ## Installation
 
 Choose the appropriate package based on your cloud storage provider:
@@ -187,10 +198,32 @@ foreach (var file in files)
     Console.WriteLine($"{file.Key}  {file.Size} bytes");
 ```
 
+`ListAsync` returns every object under the prefix, recursively, on every provider (S3 and Oracle stopped at the first 1,000 keys before 10.0.4). It is one request per 1,000 keys and the whole result is held in memory, so keep prefixes narrow. It matches by prefix, so don't use it to test whether one key exists.
+
+### Check a File Exists, Read Its Properties
+
+```csharp
+// inject ICloudFilesProperties (registered by every provider, 10.0.5+)
+if (await _properties.ExistsAsync("uploads/document.pdf")) { ... }
+
+var props = await _properties.GetPropertiesAsync("uploads/document.pdf");   // null when missing
+// props.ContentLength, ContentType, ETag, LastModified, Metadata - one request, no download
+```
+
+### Copy or Move a File
+
+```csharp
+// inject ICloudFilesCopy (registered by every provider, 10.0.5+); the store copies, no bytes pass through you
+await _copy.CopyAsync("inbox/a.json", "archive/a.json");
+await _cloudFilesService.DeleteAsync("inbox/a.json");   // a move: copy, then delete (not atomic)
+```
+
+On S3 the copy is private whatever the source's ACL, and the source can be at most 5 GB.
+
 ### Generate URLs
 
 ```csharp
-// Permanent public URL
+// Permanent URL: only works if the object or bucket is publicly readable
 var publicUrl = _cloudFilesService.GetUrl(key);
 
 // Time-limited signed URL
@@ -203,11 +236,14 @@ var signedUrl = _cloudFilesService.GetSignedUrl(key, TimeSpan.FromHours(2));
 bool deleted = await _cloudFilesService.DeleteAsync("uploads/document.pdf");
 ```
 
+Returns `false` when the file doesn't exist, except on S3, which can't tell and returns `true`; see the [behaviour reference](docs/provider-behavior.md#deleteasyncstring-key).
+
 ### Get File Metadata
 
 ```csharp
 var metadata = await _cloudFilesService.GetMetadataAsync(key);
-// Always includes: ContentType, Hash, ContentLength
+// User metadata plus ContentType, Hash and ContentLength on every network provider (10.0.5+),
+// keys case-insensitive; the local store adds ContentLength and LastModified only
 ```
 
 ### ASP.NET Core Controller Example
@@ -336,13 +372,13 @@ All four providers support `GetSignedUrl(key, expiry)`:
 | Azure (managed identity) | User Delegation SAS token |
 | Oracle Cloud | Pre-Authenticated Request (PAR) — creates a server-side resource on Oracle |
 
-> **Note:** Oracle PARs are server-side objects. Each call to `GetSignedUrl` creates a new PAR on Oracle Cloud.
+> **Note:** Oracle PARs are server-side objects. Each call to `GetSignedUrl` creates a new PAR on Oracle Cloud, with a blocking network call. Azure with managed identity also makes a network call per URL (for a user delegation key). Avoid generating signed URLs in loops on those two.
 
 ## Provider-Specific Notes
 
 ### S3-Compatible Storage
-- Works with AWS S3, DigitalOcean Spaces, MinIO, and any S3-compatible service.
-- Bucket is created automatically if it does not exist.
+- Works with AWS S3, DigitalOcean Spaces, MinIO, and any S3-compatible service. What differs between them is in [S3-compatible stores](docs/s3-compatible-stores.md).
+- Bucket is created automatically if it does not exist. This and the lifecycle setup run synchronously inside `AddS3CloudFiles()`, so an unreachable store or a key without bucket/lifecycle permissions stops the application from starting (set `DisableAutoLifecycle = true` for restricted keys).
 - The underlying `AmazonS3Client` is built once and reused for the life of the process (`ICloudFilesService` is registered as a singleton) rather than per call.
 - `TimeoutSeconds` (default `15`) and `MaxErrorRetry` (default `2`) on `S3CloudFilesOptions` bound the client's per-request timeout and automatic retry count, so a genuine outage on the storage endpoint fails fast instead of hanging on the AWS SDK's much longer defaults:
   ```csharp
@@ -434,9 +470,28 @@ public interface ICloudFilesService
     Task<bool> DeleteAsync(string key);
     string GetUrl(string key);
     string GetSignedUrl(string key, TimeSpan expiry);
-    WriteWrapper OpenWrite(WriteFileSettings settings);
+    WriteWrapper OpenWrite(WriteFileSettings settings);   // S3 only; see the behaviour reference
 }
+
+// Registered by every provider next to ICloudFilesService, resolving to the same instance
+public interface ICloudFilesLifecycle   // 10.0.1+
+{
+    Task<CloudFilesLifecycle> GetLifecycleAsync(CancellationToken cancellationToken = default);
+}
+
+public interface ICloudFilesCopy        // 10.0.5+: server-side copy inside the bucket
+{
+    Task CopyAsync(string sourceKey, string destinationKey, CancellationToken cancellationToken = default);
+}
+
+public interface ICloudFilesProperties  // 10.0.5+: null when the exact key doesn't exist
+{
+    Task<CloudFileProperties> GetPropertiesAsync(string key, CancellationToken cancellationToken = default);
+}
+// extension: Task<bool> ExistsAsync(this ICloudFilesProperties properties, string key, ...)
 ```
+
+Both are defined in [SimplyWorks.PrimitiveTypes](https://github.com/simplify9/PrimitiveTypes). New capabilities are added as separate interfaces, never as new members of `ICloudFilesService`; see [Evolving the contract](docs/evolving-the-contract.md).
 
 ## Requirements
 

@@ -41,7 +41,8 @@ public static class ServiceCollectionExtensions
     /// Registers Google Cloud Storage as the <see cref="ICloudFilesService"/> implementation.
     /// On startup, ensures the bucket exists and — unless <see cref="GoogleCloudFilesOptions.DisableAutoLifecycle"/>
     /// is true — creates delete lifecycle rules for the temp1/, temp7/, temp30/, and temp365/ prefixes.
-    /// Also registers <see cref="ICloudFilesLifecycle"/>, which reads the bucket's rules back.
+    /// Also registers <see cref="ICloudFilesLifecycle"/>, which reads the bucket's rules back, and
+    /// <see cref="ICloudFilesCopy"/> and <see cref="ICloudFilesProperties"/>.
     /// </summary>
     public static IServiceCollection AddGoogleCloudFiles(this IServiceCollection serviceCollection,
         Action<GoogleCloudFilesOptions> configure = null)
@@ -66,6 +67,8 @@ public static class ServiceCollectionExtensions
         serviceCollection.AddScoped<CloudFilesService>();
         serviceCollection.AddScoped<ICloudFilesService>(sp => sp.GetRequiredService<CloudFilesService>());
         serviceCollection.AddScoped<ICloudFilesLifecycle>(sp => sp.GetRequiredService<CloudFilesService>());
+        serviceCollection.AddScoped<ICloudFilesCopy>(sp => sp.GetRequiredService<CloudFilesService>());
+        serviceCollection.AddScoped<ICloudFilesProperties>(sp => sp.GetRequiredService<CloudFilesService>());
         serviceCollection.AddSingleton(cloudFilesOptions);
         serviceCollection.AddSingleton<CloudFilesOptions>(cloudFilesOptions);
         serviceCollection.AddSingleton(client);

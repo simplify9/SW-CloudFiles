@@ -149,10 +149,56 @@ public class Tests
     }
 
     [TestMethod]
-    public async Task DeleteAsync_ReturnsTrueForNonExistentKey()
+    public async Task DeleteAsync_ReturnsFalseForNonExistentKey()
     {
+        // Matches Azure, Google and Oracle since 10.0.5 (it returned true before).
         var deleted = await _cloudFiles.DeleteAsync("does/not/exist.txt");
-        Assert.IsTrue(deleted);
+        Assert.IsFalse(deleted);
+    }
+
+    [TestMethod]
+    public async Task CopyAsync_CopiesContentAndMetadata()
+    {
+        var copy = _services.GetRequiredService<ICloudFilesCopy>();
+        await _cloudFiles.WriteTextAsync("copied", new WriteFileSettings
+        {
+            Key = "copy/source.txt",
+            Metadata = new Dictionary<string, string> { ["origin"] = "test" }
+        });
+
+        await copy.CopyAsync("copy/source.txt", "copy/nested/destination.txt");
+
+        using var reader = new StreamReader(await _cloudFiles.OpenReadAsync("copy/nested/destination.txt"));
+        Assert.AreEqual("copied", await reader.ReadToEndAsync());
+        Assert.AreEqual("test", (await _cloudFiles.GetMetadataAsync("copy/nested/destination.txt"))["origin"]);
+        Assert.IsTrue(await _services.GetRequiredService<ICloudFilesProperties>().ExistsAsync("copy/source.txt"));
+    }
+
+    [TestMethod]
+    public async Task CopyAsync_MissingSourceThrows()
+    {
+        var copy = _services.GetRequiredService<ICloudFilesCopy>();
+        await Assert.ThrowsExceptionAsync<FileNotFoundException>(() => copy.CopyAsync("copy/missing.txt", "copy/x.txt"));
+    }
+
+    [TestMethod]
+    public async Task GetPropertiesAsync_ExactKeyOnly()
+    {
+        var properties = _services.GetRequiredService<ICloudFilesProperties>();
+        await _cloudFiles.WriteTextAsync("abc", new WriteFileSettings
+        {
+            Key = "props/file-long.txt",
+            Metadata = new Dictionary<string, string> { ["Kind"] = "sample" }
+        });
+
+        var found = await properties.GetPropertiesAsync("props/file-long.txt");
+        Assert.IsNotNull(found);
+        Assert.AreEqual(3, found.ContentLength);
+        Assert.AreEqual("sample", found.Metadata["kind"]);
+        Assert.IsNotNull(found.LastModified);
+
+        Assert.IsNull(await properties.GetPropertiesAsync("props/file"));
+        Assert.IsFalse(await properties.ExistsAsync("props/missing.txt"));
     }
 
     [TestMethod]

@@ -31,6 +31,17 @@
 
 The library provides both core functionality and ASP.NET Core dependency injection extensions for easy integration into web applications.
 
+### Documentation
+
+| Page | Read it when |
+|------|--------------|
+| [Provider behaviour reference](docs/provider-behavior.md) | you need to know exactly what a method does on each provider: URLs, metadata keys, delete results, errors, memory use |
+| [S3-compatible stores](docs/s3-compatible-stores.md) | you use DigitalOcean Spaces, MinIO, SeaweedFS or another non-AWS store, or `AddS3CloudFiles` fails at startup |
+| [Evolving the contract](docs/evolving-the-contract.md) | you want to add a capability (copy, exists, range reads…) or change the interface |
+| [Changelog](CHANGELOG.md) | you are upgrading; entries marked **Behaviour change** alter what callers observe |
+
+The same method can behave differently per provider (for example `DeleteAsync` on a missing key returns `true` on S3, `false` on Google and throws on Azure). Write portable code against the behaviour reference, not against one provider.
+
 ## Installation
 
 Choose the appropriate package based on your cloud storage provider:
@@ -187,10 +198,16 @@ foreach (var file in files)
     Console.WriteLine($"{file.Key}  {file.Size} bytes");
 ```
 
+`ListAsync` returns every object under the prefix, recursively, on every provider (S3 and Oracle stopped at the first 1,000 keys before 10.0.4). It is one request per 1,000 keys and the whole result is held in memory, so keep prefixes narrow. To test whether one key exists, compare keys exactly, because the match is by prefix:
+
+```csharp
+var exists = (await _cloudFilesService.ListAsync(key)).Any(f => f.Key == key);
+```
+
 ### Generate URLs
 
 ```csharp
-// Permanent public URL
+// Permanent URL: only works if the object or bucket is publicly readable
 var publicUrl = _cloudFilesService.GetUrl(key);
 
 // Time-limited signed URL
@@ -203,11 +220,14 @@ var signedUrl = _cloudFilesService.GetSignedUrl(key, TimeSpan.FromHours(2));
 bool deleted = await _cloudFilesService.DeleteAsync("uploads/document.pdf");
 ```
 
+The return value differs by provider when the file doesn't exist; see the [behaviour reference](docs/provider-behavior.md#deleteasyncstring-key).
+
 ### Get File Metadata
 
 ```csharp
 var metadata = await _cloudFilesService.GetMetadataAsync(key);
-// Always includes: ContentType, Hash, ContentLength
+// User metadata on every provider. S3 and Azure also add ContentType, Hash and ContentLength,
+// Oracle adds ContentType and Hash, Google adds none: see docs/provider-behavior.md
 ```
 
 ### ASP.NET Core Controller Example
@@ -336,13 +356,13 @@ All four providers support `GetSignedUrl(key, expiry)`:
 | Azure (managed identity) | User Delegation SAS token |
 | Oracle Cloud | Pre-Authenticated Request (PAR) — creates a server-side resource on Oracle |
 
-> **Note:** Oracle PARs are server-side objects. Each call to `GetSignedUrl` creates a new PAR on Oracle Cloud.
+> **Note:** Oracle PARs are server-side objects. Each call to `GetSignedUrl` creates a new PAR on Oracle Cloud, with a blocking network call. Azure with managed identity also makes a network call per URL (for a user delegation key). Avoid generating signed URLs in loops on those two.
 
 ## Provider-Specific Notes
 
 ### S3-Compatible Storage
-- Works with AWS S3, DigitalOcean Spaces, MinIO, and any S3-compatible service.
-- Bucket is created automatically if it does not exist.
+- Works with AWS S3, DigitalOcean Spaces, MinIO, and any S3-compatible service. What differs between them is in [S3-compatible stores](docs/s3-compatible-stores.md).
+- Bucket is created automatically if it does not exist. This and the lifecycle setup run synchronously inside `AddS3CloudFiles()`, so an unreachable store or a key without bucket/lifecycle permissions stops the application from starting (set `DisableAutoLifecycle = true` for restricted keys).
 - The underlying `AmazonS3Client` is built once and reused for the life of the process (`ICloudFilesService` is registered as a singleton) rather than per call.
 - `TimeoutSeconds` (default `15`) and `MaxErrorRetry` (default `2`) on `S3CloudFilesOptions` bound the client's per-request timeout and automatic retry count, so a genuine outage on the storage endpoint fails fast instead of hanging on the AWS SDK's much longer defaults:
   ```csharp
@@ -434,9 +454,17 @@ public interface ICloudFilesService
     Task<bool> DeleteAsync(string key);
     string GetUrl(string key);
     string GetSignedUrl(string key, TimeSpan expiry);
-    WriteWrapper OpenWrite(WriteFileSettings settings);
+    WriteWrapper OpenWrite(WriteFileSettings settings);   // S3 only; see the behaviour reference
+}
+
+// Registered by every provider next to ICloudFilesService (10.0.1+)
+public interface ICloudFilesLifecycle
+{
+    Task<CloudFilesLifecycle> GetLifecycleAsync(CancellationToken cancellationToken = default);
 }
 ```
+
+Both are defined in [SimplyWorks.PrimitiveTypes](https://github.com/simplify9/PrimitiveTypes). New capabilities are added as separate interfaces, never as new members of `ICloudFilesService`; see [Evolving the contract](docs/evolving-the-contract.md).
 
 ## Requirements
 

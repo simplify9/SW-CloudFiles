@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
@@ -108,6 +109,24 @@ public class S3CompatibleStoreTests
         });
 
         AssertStored(Encoding.UTF8.GetBytes(json), await DownloadRaw(cloudFiles, "checksum/text.json"));
+    }
+
+    [TestMethod]
+    public async Task List_returns_every_object_beyond_the_first_page()
+    {
+        // ListObjectsV2 pages at 1,000 keys; before 10.0.4 ListAsync stopped after the first page.
+        const int count = 1_050;
+        using var cloudFiles = new CloudFilesService(options);
+
+        var keys = Enumerable.Range(0, count).Select(i => $"paging/{i:D5}.txt").ToList();
+        foreach (var batch in keys.Chunk(50))
+            await Task.WhenAll(batch.Select(key =>
+                cloudFiles.WriteTextAsync("x", new WriteFileSettings { Key = key })));
+
+        var listed = (await cloudFiles.ListAsync("paging/")).Select(f => f.Key).ToList();
+
+        Assert.AreEqual(count, listed.Count);
+        CollectionAssert.AreEquivalent(keys, listed);
     }
 
     private static void AssertStored(byte[] uploaded, byte[] stored) =>

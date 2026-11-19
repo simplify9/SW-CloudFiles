@@ -212,8 +212,9 @@ public class CloudFilesService : IDisposable, ICloudFilesService, ICloudFilesLif
     /// <inheritdoc/>
     public async Task<IEnumerable<CloudFileInfo>> ListAsync(string prefix)
     {
-
-        ListObjectsV2Request request = new ListObjectsV2Request
+        // ListObjectsV2 returns at most 1,000 keys per call, so follow the continuation token until
+        // the listing is complete (the Azure and Google providers already return every page).
+        var request = new ListObjectsV2Request
         {
             BucketName = cloudFilesOptions.BucketName,
             Prefix = prefix
@@ -221,21 +222,23 @@ public class CloudFilesService : IDisposable, ICloudFilesService, ICloudFilesLif
 
         var result = new List<CloudFileInfo>();
 
-        var response = await client.ListObjectsV2Async(request);
-
-        foreach (var entry in response.S3Objects)
+        while (true)
         {
-            result.Add(new CloudFileInfo
-            {
-                Key = entry.Key,
-                Size = entry.Size,
-                Signature = entry.ETag
+            var response = await client.ListObjectsV2Async(request);
 
-            });
+            foreach (var entry in response.S3Objects)
+                result.Add(new CloudFileInfo
+                {
+                    Key = entry.Key,
+                    Size = entry.Size,
+                    Signature = entry.ETag
+                });
+
+            if (!response.IsTruncated || string.IsNullOrEmpty(response.NextContinuationToken))
+                return result;
+
+            request.ContinuationToken = response.NextContinuationToken;
         }
-
-        return result;
-
     }
 
     /// <inheritdoc/>

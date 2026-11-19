@@ -129,6 +129,60 @@ public class S3CompatibleStoreTests
         CollectionAssert.AreEquivalent(keys, listed);
     }
 
+    [TestMethod]
+    public async Task Copy_is_done_by_the_store_with_content_type_and_metadata()
+    {
+        using var cloudFiles = new CloudFilesService(options);
+        await cloudFiles.WriteAsync(new MemoryStream(Encoding.UTF8.GetBytes("{\"a\":1}")), new WriteFileSettings
+        {
+            Key = "copy/source.json",
+            ContentType = "application/json",
+            Metadata = { ["origin"] = "copy-test" }
+        });
+
+        await cloudFiles.CopyAsync("copy/source.json", "copy/destination.json");
+
+        var copied = await cloudFiles.GetPropertiesAsync("copy/destination.json");
+        Assert.IsNotNull(copied);
+        Assert.AreEqual("application/json", copied.ContentType);
+        Assert.AreEqual("copy-test", copied.Metadata["origin"]);
+        AssertStored(Encoding.UTF8.GetBytes("{\"a\":1}"), await DownloadRaw(cloudFiles, "copy/destination.json"));
+        Assert.IsNotNull(await cloudFiles.GetPropertiesAsync("copy/source.json"), "the source stays");
+    }
+
+    [TestMethod]
+    public async Task Properties_are_null_for_a_missing_key_and_never_match_by_prefix()
+    {
+        using var cloudFiles = new CloudFilesService(options);
+        await cloudFiles.WriteTextAsync("abcd", new WriteFileSettings { Key = "props/item-long.txt" });
+
+        var found = await cloudFiles.GetPropertiesAsync("props/item-long.txt");
+        Assert.IsNotNull(found);
+        Assert.AreEqual(4, found.ContentLength);
+        Assert.IsFalse(string.IsNullOrEmpty(found.ETag));
+        Assert.IsFalse(found.ETag.Contains('"'));
+        Assert.IsNotNull(found.LastModified);
+
+        Assert.IsNull(await cloudFiles.GetPropertiesAsync("props/item"));
+        Assert.IsFalse(await cloudFiles.ExistsAsync("props/missing.txt"));
+    }
+
+    [TestMethod]
+    public async Task Text_writes_keep_metadata_and_report_size_in_bytes()
+    {
+        using var cloudFiles = new CloudFilesService(options);
+        const string text = "héllo";   // 5 characters, 6 bytes in UTF-8
+
+        var blob = await cloudFiles.WriteTextAsync(text, new WriteFileSettings
+        {
+            Key = "text/meta.txt",
+            Metadata = { ["kind"] = "greeting" }
+        });
+
+        Assert.AreEqual(6, blob.Size);
+        Assert.AreEqual("greeting", (await cloudFiles.GetMetadataAsync("text/meta.txt"))["kind"]);
+    }
+
     private static void AssertStored(byte[] uploaded, byte[] stored) =>
         CollectionAssert.AreEqual(uploaded, stored, $"Stored object was: {Encoding.UTF8.GetString(stored)}");
 

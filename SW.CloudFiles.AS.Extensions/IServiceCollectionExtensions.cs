@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Azure;
 using Azure.ResourceManager.Storage;
 using Microsoft.Extensions.Configuration;
@@ -13,7 +13,8 @@ public static class IServiceCollectionExtensions
 {
     /// <summary>
     /// Registers Azure Blob Storage as the <see cref="ICloudFilesService"/> implementation, and
-    /// <see cref="ICloudFilesLifecycle"/>, which reads the storage account's deletion rules back.
+    /// <see cref="ICloudFilesLifecycle"/>, which reads the storage account's deletion rules back, and
+    /// <see cref="ICloudFilesCopy"/> and <see cref="ICloudFilesProperties"/>.
     /// On startup, creates the container if it does not exist.
     /// <para>
     /// Once <see cref="AzureCloudFilesOptions.SubscriptionId"/> and
@@ -44,6 +45,8 @@ public static class IServiceCollectionExtensions
         serviceCollection.AddSingleton<CloudFilesService>();
         serviceCollection.AddSingleton<ICloudFilesService>(sp => sp.GetRequiredService<CloudFilesService>());
         serviceCollection.AddSingleton<ICloudFilesLifecycle>(sp => sp.GetRequiredService<CloudFilesService>());
+        serviceCollection.AddSingleton<ICloudFilesCopy>(sp => sp.GetRequiredService<CloudFilesService>());
+        serviceCollection.AddSingleton<ICloudFilesProperties>(sp => sp.GetRequiredService<CloudFilesService>());
         return serviceCollection;
     }
 

@@ -17,8 +17,11 @@ using SW.PrimitiveTypes;
 
 namespace SW.CloudFiles.OC
 {
-    /// <summary>Oracle Cloud Infrastructure Object Storage implementation of <see cref="ICloudFilesService"/> and <see cref="ICloudFilesLifecycle"/>.</summary>
-    public class CloudFilesService : ICloudFilesService, ICloudFilesLifecycle, IDisposable
+    /// <summary>
+    /// Oracle Cloud Infrastructure Object Storage implementation of <see cref="ICloudFilesService"/>,
+    /// <see cref="ICloudFilesLifecycle"/>, <see cref="ICloudFilesCopy"/> and <see cref="ICloudFilesProperties"/>.
+    /// </summary>
+    public class CloudFilesService : ICloudFilesService, ICloudFilesLifecycle, ICloudFilesCopy, ICloudFilesProperties, IDisposable
     {
         private readonly OracleCloudFilesOptions _cloudFilesOptions;
         private readonly UploadManager _uploadManager;
@@ -56,7 +59,9 @@ namespace SW.CloudFiles.OC
             return new RemoteBlob
             {
                 Location = _cloudFilesOptions.GetFileUrl(settings.Key),
-                MimeType = mimeType
+                MimeType = mimeType,
+                Name = settings.Key,
+                Size = inputStream.CanSeek ? (int)inputStream.Length : 0
             };
         }
 
@@ -81,7 +86,9 @@ namespace SW.CloudFiles.OC
             return new RemoteBlob
             {
                 Location = _cloudFilesOptions.GetFileUrl(settings.Key),
-                MimeType = mimeType
+                MimeType = mimeType,
+                Name = settings.Key,
+                Size = byteArray.Length
             };
         }
 
@@ -175,8 +182,9 @@ namespace SW.CloudFiles.OC
                     result[kvp.Key] = kvp.Value;
                 }
             }
-            result.TryAdd("Hash", headObject.ETag);
+            result.TryAdd("Hash", headObject.ETag?.Trim('"'));
             result.TryAdd("ContentType", headObject.ContentType);
+            result.TryAdd("ContentLength", (headObject.ContentLength ?? 0).ToString());
             return result;
         }
 
@@ -198,6 +206,79 @@ namespace SW.CloudFiles.OC
                 _logger.LogError(e, "Failed to delete file");
                 return false;
             }
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Oracle copies asynchronously through a work request; this waits for it, checking every
+        /// second, until it completes, fails or <paramref name="cancellationToken"/> is cancelled.
+        /// Content type and metadata are copied. Not covered by tests (they need a live tenancy).
+        /// </remarks>
+        public async Task CopyAsync(string sourceKey, string destinationKey, CancellationToken cancellationToken = default)
+        {
+            var response = await _client.CopyObject(new CopyObjectRequest
+            {
+                NamespaceName = _cloudFilesOptions.NamespaceName,
+                BucketName = _cloudFilesOptions.BucketName,
+                CopyObjectDetails = new CopyObjectDetails
+                {
+                    SourceObjectName = sourceKey,
+                    DestinationRegion = _cloudFilesOptions.Region,
+                    DestinationNamespace = _cloudFilesOptions.NamespaceName,
+                    DestinationBucket = _cloudFilesOptions.BucketName,
+                    DestinationObjectName = destinationKey,
+                }
+            }, cancellationToken: cancellationToken);
+
+            while (true)
+            {
+                var workRequest = (await _client.GetWorkRequest(new GetWorkRequestRequest
+                {
+                    WorkRequestId = response.OpcWorkRequestId
+                }, cancellationToken: cancellationToken)).WorkRequest;
+
+                switch (workRequest.Status)
+                {
+                    case WorkRequest.StatusEnum.Completed:
+                        return;
+                    case WorkRequest.StatusEnum.Failed:
+                    case WorkRequest.StatusEnum.Canceled:
+                        throw new InvalidOperationException(
+                            $"Copying '{sourceKey}' to '{destinationKey}' ended as {workRequest.Status} (work request {response.OpcWorkRequestId}).");
+                }
+
+                await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<CloudFileProperties> GetPropertiesAsync(string key, CancellationToken cancellationToken = default)
+        {
+            Oci.ObjectstorageService.Responses.HeadObjectResponse headObject;
+            try
+            {
+                headObject = await _client.HeadObject(new HeadObjectRequest
+                {
+                    BucketName = _cloudFilesOptions.BucketName,
+                    NamespaceName = _cloudFilesOptions.NamespaceName,
+                    ObjectName = key
+                }, cancellationToken: cancellationToken);
+            }
+            catch (OciException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+            {
+                return null;
+            }
+
+            return new CloudFileProperties
+            {
+                Key = key,
+                ContentLength = headObject.ContentLength ?? 0,
+                ContentType = headObject.ContentType,
+                ETag = headObject.ETag?.Trim('"'),
+                LastModified = headObject.LastModified,
+                Metadata = new Dictionary<string, string>(headObject.OpcMeta ?? new Dictionary<string, string>(),
+                    StringComparer.OrdinalIgnoreCase),
+            };
         }
 
         /// <inheritdoc/>

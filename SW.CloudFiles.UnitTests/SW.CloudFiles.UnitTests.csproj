@@ -25,6 +25,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SW.CloudFiles.S3.Extensions\SW.CloudFiles.S3.Extensions.csproj" />
+    <ProjectReference Include="..\SW.CloudFiles.AS\SW.CloudFiles.AS.csproj" />
+    <ProjectReference Include="..\SW.CloudFiles.GC\SW.CloudFiles.GC.csproj" />
   </ItemGroup>
 
   <ItemGroup>

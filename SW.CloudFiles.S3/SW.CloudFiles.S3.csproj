@@ -39,7 +39,7 @@
 
   <ItemGroup>
     <PackageReference Include="AWSSDK.S3" Version="3.7.412.2" />
-    <PackageReference Include="SimplyWorks.PrimitiveTypes" Version="10.0.1" />
+    <PackageReference Include="SimplyWorks.PrimitiveTypes" Version="10.0.5" />
   </ItemGroup>
   <ItemGroup>
     <None Include="../icon.png">

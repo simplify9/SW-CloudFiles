@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -17,9 +17,12 @@ using SW.PrimitiveTypes;
 
 namespace SW.CloudFiles.AS;
 
-/// <summary>Azure Blob Storage implementation of <see cref="ICloudFilesService"/> and <see cref="ICloudFilesLifecycle"/>.</summary>
+/// <summary>
+/// Azure Blob Storage implementation of <see cref="ICloudFilesService"/>, <see cref="ICloudFilesLifecycle"/>,
+/// <see cref="ICloudFilesCopy"/> and <see cref="ICloudFilesProperties"/>.
+/// </summary>
 public class CloudFilesService(AzureCloudFilesOptions cloudFilesOptions, BlobContainerClient blobContainerClient)
-    : IDisposable, ICloudFilesService, ICloudFilesLifecycle
+    : IDisposable, ICloudFilesService, ICloudFilesLifecycle, ICloudFilesCopy, ICloudFilesProperties
 {
     private readonly AzureCloudFilesOptions cloudFilesOptions = cloudFilesOptions;
     private readonly BlobContainerClient blobContainerClient = blobContainerClient;
@@ -159,7 +162,7 @@ public class CloudFilesService(AzureCloudFilesOptions cloudFilesOptions, BlobCon
     {
         var blob = blobContainerClient.GetBlobClient(key);
         var properties = await blob.GetPropertiesAsync();
-        var data = new Dictionary<string, string>(properties.Value.Metadata);
+        var data = new Dictionary<string, string>(properties.Value.Metadata, StringComparer.OrdinalIgnoreCase);
 
         if (!data.TryGetValue("ContentType", out var _))
         {
@@ -183,9 +186,9 @@ public class CloudFilesService(AzureCloudFilesOptions cloudFilesOptions, BlobCon
     /// <inheritdoc/>
     public async Task<bool> DeleteAsync(string key)
     {
+        // false, rather than a 404 exception, when the blob doesn't exist (as Google and Oracle do).
         var blob = blobContainerClient.GetBlobClient(key);
-        await blob.DeleteAsync(DeleteSnapshotsOption.IncludeSnapshots);
-        return true;
+        return (await blob.DeleteIfExistsAsync(DeleteSnapshotsOption.IncludeSnapshots)).Value;
     }
 
     /// <inheritdoc/>
@@ -216,6 +219,43 @@ public class CloudFilesService(AzureCloudFilesOptions cloudFilesOptions, BlobCon
 
         lifecycle.Rules = AzureLifecycleRules.ToDeletionRules(rules, cloudFilesOptions.BucketName);
         return lifecycle;
+    }
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// Starts a copy within the account and waits for it; same-account copies normally finish at once.
+    /// Content type and metadata are copied; visibility is the container's.
+    /// </remarks>
+    public async Task CopyAsync(string sourceKey, string destinationKey, CancellationToken cancellationToken = default)
+    {
+        var source = blobContainerClient.GetBlobClient(sourceKey);
+        var destination = blobContainerClient.GetBlobClient(destinationKey);
+        var operation = await destination.StartCopyFromUriAsync(source.Uri, cancellationToken: cancellationToken);
+        await operation.WaitForCompletionAsync(cancellationToken);
+    }
+
+    /// <inheritdoc/>
+    public async Task<CloudFileProperties> GetPropertiesAsync(string key, CancellationToken cancellationToken = default)
+    {
+        BlobProperties properties;
+        try
+        {
+            properties = (await blobContainerClient.GetBlobClient(key).GetPropertiesAsync(cancellationToken: cancellationToken)).Value;
+        }
+        catch (RequestFailedException ex) when (ex.Status == 404)
+        {
+            return null;
+        }
+
+        return new CloudFileProperties
+        {
+            Key = key,
+            ContentLength = properties.ContentLength,
+            ContentType = properties.ContentType,
+            ETag = properties.ETag.ToString().Trim('"'),
+            LastModified = properties.LastModified,
+            Metadata = new Dictionary<string, string>(properties.Metadata, StringComparer.OrdinalIgnoreCase),
+        };
     }
 
     /// <inheritdoc/>

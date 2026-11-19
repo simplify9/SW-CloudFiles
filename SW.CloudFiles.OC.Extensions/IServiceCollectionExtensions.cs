@@ -22,7 +22,8 @@ public static class IServiceCollectionExtensions
     /// On startup, writes OCI credentials to temporary files and — unless
     /// <see cref="OracleCloudFilesOptions.DisableAutoLifecycle"/> is true — creates delete lifecycle rules
     /// for the temp1/, temp7/, temp30/, and temp365/ prefixes on the bucket. Also registers
-    /// <see cref="ICloudFilesLifecycle"/>, which reads the bucket's rules back.
+    /// <see cref="ICloudFilesLifecycle"/>, which reads the bucket's rules back, and
+    /// <see cref="ICloudFilesCopy"/> and <see cref="ICloudFilesProperties"/>.
     /// </summary>
     public static IServiceCollection AddOracleCloudFiles(this IServiceCollection serviceCollection,
         Action<OracleCloudFilesOptions> configure = null)
@@ -55,6 +56,8 @@ key_file={pemPath}");
         serviceCollection.AddSingleton<CloudFilesService>();
         serviceCollection.AddSingleton<ICloudFilesService>(sp => sp.GetRequiredService<CloudFilesService>());
         serviceCollection.AddSingleton<ICloudFilesLifecycle>(sp => sp.GetRequiredService<CloudFilesService>());
+        serviceCollection.AddSingleton<ICloudFilesCopy>(sp => sp.GetRequiredService<CloudFilesService>());
+        serviceCollection.AddSingleton<ICloudFilesProperties>(sp => sp.GetRequiredService<CloudFilesService>());
         serviceCollection.AddSingleton(cloudFilesOptions);
         serviceCollection.AddSingleton<CloudFilesOptions>(cloudFilesOptions);
         return serviceCollection;

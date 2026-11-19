@@ -1,4 +1,4 @@
-﻿using Amazon.S3;
+using Amazon.S3;
 using Amazon.S3.Model;
 using SW.PrimitiveTypes;
 using System;
@@ -11,8 +11,11 @@ using System.Threading.Tasks;
 
 namespace SW.CloudFiles.S3;
 
-/// <summary>S3-compatible implementation of <see cref="ICloudFilesService"/> and <see cref="ICloudFilesLifecycle"/>.</summary>
-public class CloudFilesService : IDisposable, ICloudFilesService, ICloudFilesLifecycle
+/// <summary>
+/// S3-compatible implementation of <see cref="ICloudFilesService"/>, <see cref="ICloudFilesLifecycle"/>,
+/// <see cref="ICloudFilesCopy"/> and <see cref="ICloudFilesProperties"/>.
+/// </summary>
+public class CloudFilesService : IDisposable, ICloudFilesService, ICloudFilesLifecycle, ICloudFilesCopy, ICloudFilesProperties
 {
     private const string metadataPrefix = "x-amz-meta-";
     private readonly CloudFilesOptions cloudFilesOptions;
@@ -66,6 +69,10 @@ public class CloudFilesService : IDisposable, ICloudFilesService, ICloudFilesLif
             ContentType = settings.ContentType ?? "text/plain"
         };
 
+        if (settings.Metadata != null)
+            foreach (var kvp in settings.Metadata)
+                request.Metadata.Add(kvp.Key, kvp.Value);
+
         await client.PutObjectAsync(request);
 
         return new RemoteBlob
@@ -73,7 +80,7 @@ public class CloudFilesService : IDisposable, ICloudFilesService, ICloudFilesLif
             Location = settings.Public ? GetUrl(settings.Key) : GetSignedUrl(settings.Key, TimeSpan.FromHours(1)),
             MimeType = settings.ContentType,
             Name = settings.Key,
-            Size = Convert.ToInt32(text.Length)
+            Size = System.Text.Encoding.UTF8.GetByteCount(text)
         };
     }
 
@@ -263,6 +270,54 @@ public class CloudFilesService : IDisposable, ICloudFilesService, ICloudFilesLif
             Provider = "S3",
             Bucket = cloudFilesOptions.BucketName,
             Rules = S3LifecycleRules.ToDeletionRules(rules)
+        };
+    }
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// One CopyObject request, so the source can be at most 5 GB. The copy keeps the content type and
+    /// user metadata (the request's metadata directive is COPY) but not the ACL: it is private.
+    /// </remarks>
+    public async Task CopyAsync(string sourceKey, string destinationKey, CancellationToken cancellationToken = default)
+    {
+        await client.CopyObjectAsync(new CopyObjectRequest
+        {
+            SourceBucket = cloudFilesOptions.BucketName,
+            SourceKey = sourceKey,
+            DestinationBucket = cloudFilesOptions.BucketName,
+            DestinationKey = destinationKey,
+        }, cancellationToken);
+    }
+
+    /// <inheritdoc/>
+    public async Task<CloudFileProperties> GetPropertiesAsync(string key, CancellationToken cancellationToken = default)
+    {
+        GetObjectMetadataResponse response;
+        try
+        {
+            response = await client.GetObjectMetadataAsync(new GetObjectMetadataRequest
+            {
+                BucketName = cloudFilesOptions.BucketName,
+                Key = key,
+            }, cancellationToken);
+        }
+        catch (AmazonS3Exception ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+
+        var metadata = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var metadataKey in response.Metadata.Keys)
+            metadata[metadataKey.Replace(metadataPrefix, "")] = response.Metadata[metadataKey];
+
+        return new CloudFileProperties
+        {
+            Key = key,
+            ContentLength = response.ContentLength,
+            ContentType = response.Headers.ContentType,
+            ETag = response.ETag?.Trim('"'),
+            LastModified = response.LastModified == default ? null : new DateTimeOffset(response.LastModified),
+            Metadata = metadata,
         };
     }
 

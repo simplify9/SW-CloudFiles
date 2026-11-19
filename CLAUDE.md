@@ -60,7 +60,7 @@ GetSignedUrl(string key, TimeSpan expiry) -> string
 OpenWrite(WriteFileSettings) -> WriteWrapper
 ```
 
-Note: `GetSignedUrl` throws `NotImplementedException` in Azure and Oracle providers.
+All providers implement `GetSignedUrl` (Azure: SAS, Oracle: a PAR created per call). `OpenWrite` works on S3 only; the others throw. Every provider also implements and registers `ICloudFilesCopy` and `ICloudFilesProperties` (10.0.5), resolving to the same `CloudFilesService` instance as `ICloudFilesService`; a new capability follows the same pattern in every `Add*CloudFiles`. Per-method, per-provider differences (metadata keys, delete results, URL shapes, errors) are in `docs/provider-behavior.md`: keep that page true when changing a provider.
 
 `ListAsync` returns every object under the prefix on all providers. Before 10.0.4 the S3 and Oracle providers returned only the first page (1,000 keys) while Azure and GCS walked every page; S3 now follows `NextContinuationToken`, Oracle `NextStartWith` (`List_returns_every_object_beyond_the_first_page` covers S3 against SeaweedFS).
 
@@ -107,7 +107,7 @@ S3 and GCS also auto-create the bucket if it does not exist.
 
 ### S3: compatibility with non-AWS stores
 
-`CreateClient()` sets `RequestChecksumCalculation`/`ResponseChecksumValidation` to `WHEN_REQUIRED`: the AWSSDK.S3 3.7.410+ default sends PutObject bodies as `aws-chunked` with a trailing CRC32, and stores that don't decode it (SeaweedFS, older MinIO) save the chunk framing into the object. It also returns a `CloudFilesS3Client`, whose pipeline drops the `x-amz-expiration` response header before unmarshalling, because the SDK throws `FormatException` on a malformed expiry date after the request has already succeeded. `S3CompatibleStoreTests` needs Docker (SeaweedFS via Testcontainers); `S3ExpirationHeaderTests` uses a local `HttpListener`.
+`CreateClient()` sets `RequestChecksumCalculation`/`ResponseChecksumValidation` to `WHEN_REQUIRED`: the AWSSDK.S3 3.7.410+ default sends PutObject bodies as `aws-chunked` with a trailing CRC32, and stores that don't decode it (SeaweedFS, older MinIO) save the chunk framing into the object. It also returns a `CloudFilesS3Client`, whose pipeline drops the `x-amz-expiration` response header before unmarshalling, because the SDK throws `FormatException` on a malformed expiry date after the request has already succeeded. `S3CompatibleStoreTests` (SeaweedFS), `AzuriteStoreTests` (Azurite) and `FakeGcsStoreTests` (fake-gcs-server) need Docker; `S3ExpirationHeaderTests` uses a local `HttpListener`. fake-gcs-server drops content types and sometimes sends timestamps the Google SDK's strict getters reject, so the Google provider parses `UpdatedRaw` itself. Oracle has no emulator: its copy and properties code is untested. The older `UnitTest1`-style tests in each project need live cloud credentials and fail locally.
 
 ### GCS: `StorageClient` and `UrlSigner` via DI
 
@@ -132,13 +132,21 @@ Prompted by that incident, the other three network-backed providers were audited
 - **Google Cloud (`SW.CloudFiles.GC`) — already correct, no change needed.** `ICloudFilesService` is `AddScoped`, but the actual `StorageClient`/`UrlSigner` doing the I/O are `AddSingleton` and injected in — no repeated client construction regardless of the wrapper service's lifetime. This is the reference-correct pattern the other providers now follow.
 - **LocalTests** — file-based, no network client involved, not applicable.
 
-None of Azure/GCS/Oracle are referenced by any Traxis service (only the S3 provider is, via `AddS3CloudFiles()` in all 8 backend microservices) — this was pure library-quality debt with no live-incident urgency, unlike the S3 fix.
+The Azure, Google and Oracle findings were library-quality debt found by the audit, not live incidents like the S3 one.
 
 Note: `SW.CloudFiles.AS.UnitTest` and `SW.CloudFiles.OC.UnitTest` fail locally regardless of these changes (confirmed by reverting and re-running) — they appear to be integration tests requiring live cloud credentials, consistent with CI's `run-tests: 'false'` in `nuget-publish.yml`. Not a regression from this audit.
 
+## Documentation and the contract
+
+- `docs/provider-behavior.md`: what each method does on each provider. Update it with any behaviour change.
+- `docs/s3-compatible-stores.md`: client settings, startup calls, store differences.
+- `docs/evolving-the-contract.md`: the interface lives in PrimitiveTypes and outside implementations exist, so new capabilities are new interfaces registered beside `ICloudFilesService` (as `ICloudFilesLifecycle` is), never new members on it. Also the ranked roadmap and what stays out of scope.
+- `CHANGELOG.md`: one entry per release; mark changes callers can observe as **Behaviour change**.
+- `main` publishes 10.0.x only (net10.0); the 8.1.x line ended at 8.1.13 and has no branch.
+
 ## Key Dependencies
 
-- `SimplyWorks.PrimitiveTypes` v8.1.3 — shared interface and base types (all providers)
+- `SimplyWorks.PrimitiveTypes` 10.x — shared interface and base types (all providers)
 - `AWSSDK.S3` — S3 provider
 - `Azure.Storage.Blobs` + `Azure.Identity` — Azure provider (Managed Identity support)
 - `Google.Cloud.Storage.V1` — GCP provider

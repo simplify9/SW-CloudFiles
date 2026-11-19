@@ -1,4 +1,4 @@
-﻿using Amazon.S3;
+using Amazon.S3;
 using Amazon.S3.Model;
 using Amazon.S3.Util;
 using Microsoft.Extensions.Configuration;
@@ -18,8 +18,8 @@ public static class IServiceCollectionExtensions
     /// On startup, creates the bucket if it does not exist and — unless
     /// <see cref="S3CloudFilesOptions.DisableAutoLifecycle"/> is true — ensures delete lifecycle rules
     /// exist for the temp1/, temp7/, temp30/, and temp365/ prefixes (1, 7, 30, and 365 days respectively),
-    /// keeping every other rule already on the bucket. Also registers <see cref="ICloudFilesLifecycle"/>,
-    /// which reads the bucket's rules back.
+    /// keeping every other rule already on the bucket. Also registers <see cref="ICloudFilesLifecycle"/>
+    /// (reads the bucket's rules back), <see cref="ICloudFilesCopy"/> and <see cref="ICloudFilesProperties"/>.
     /// </summary>
     public static IServiceCollection AddS3CloudFiles(this IServiceCollection serviceCollection,
         Action<S3CloudFilesOptions> configure = null)
@@ -70,6 +70,8 @@ public static class IServiceCollectionExtensions
         serviceCollection.AddSingleton<CloudFilesService>();
         serviceCollection.AddSingleton<ICloudFilesService>(sp => sp.GetRequiredService<CloudFilesService>());
         serviceCollection.AddSingleton<ICloudFilesLifecycle>(sp => sp.GetRequiredService<CloudFilesService>());
+        serviceCollection.AddSingleton<ICloudFilesCopy>(sp => sp.GetRequiredService<CloudFilesService>());
+        serviceCollection.AddSingleton<ICloudFilesProperties>(sp => sp.GetRequiredService<CloudFilesService>());
 
         return serviceCollection;
     }

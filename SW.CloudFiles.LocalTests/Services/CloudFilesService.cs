@@ -21,7 +21,7 @@ namespace SW.CloudFiles.LocalTests;
 /// <see cref="Cleanup"/> in your test teardown to remove all files written during the
 /// test run.
 /// </remarks>
-public class CloudFilesService(LocalTestsCloudFilesOptions options) : ICloudFilesService, ICloudFilesLifecycle, IDisposable
+public class CloudFilesService(LocalTestsCloudFilesOptions options) : ICloudFilesService, ICloudFilesLifecycle, ICloudFilesCopy, ICloudFilesProperties, IDisposable
 {
     private readonly string _root = options.ResolvedStoragePath;
 
@@ -132,13 +132,61 @@ public class CloudFilesService(LocalTestsCloudFilesOptions options) : ICloudFile
     /// <inheritdoc/>
     public Task<bool> DeleteAsync(string key)
     {
+        // false when the file didn't exist, as the Azure, Google and Oracle providers return.
         var path = ToAbsolutePath(key);
-        if (File.Exists(path)) File.Delete(path);
+        var existed = File.Exists(path);
+        if (existed) File.Delete(path);
 
         var metaPath = ToMetaPath(key);
         if (File.Exists(metaPath)) File.Delete(metaPath);
 
-        return Task.FromResult(true);
+        return Task.FromResult(existed);
+    }
+
+    /// <inheritdoc/>
+    /// <remarks>Copies the file and its metadata sidecar. A missing source throws <see cref="FileNotFoundException"/>.</remarks>
+    public Task CopyAsync(string sourceKey, string destinationKey, CancellationToken cancellationToken = default)
+    {
+        var destination = ToAbsolutePath(destinationKey);
+        EnsureParentDirectory(destination);
+        File.Copy(ToAbsolutePath(sourceKey), destination, overwrite: true);
+
+        var sourceMeta = ToMetaPath(sourceKey);
+        var destinationMeta = ToMetaPath(destinationKey);
+        if (File.Exists(sourceMeta)) File.Copy(sourceMeta, destinationMeta, overwrite: true);
+        else if (File.Exists(destinationMeta)) File.Delete(destinationMeta);
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// The local store keeps no content type, so <see cref="CloudFileProperties.ContentType"/> is
+    /// <c>null</c>; <see cref="CloudFileProperties.ETag"/> is derived from size and write time.
+    /// </remarks>
+    public async Task<CloudFileProperties> GetPropertiesAsync(string key, CancellationToken cancellationToken = default)
+    {
+        var file = new FileInfo(ToAbsolutePath(key));
+        if (!file.Exists) return null;
+
+        var metadata = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var metaPath = ToMetaPath(key);
+        if (File.Exists(metaPath))
+        {
+            var stored = JsonSerializer.Deserialize<Dictionary<string, string>>(
+                await File.ReadAllTextAsync(metaPath, cancellationToken));
+            if (stored is not null)
+                foreach (var kv in stored)
+                    metadata[kv.Key] = kv.Value;
+        }
+
+        return new CloudFileProperties
+        {
+            Key = key,
+            ContentLength = file.Length,
+            ETag = $"{file.Length:x}-{file.LastWriteTimeUtc.Ticks:x}",
+            LastModified = new DateTimeOffset(file.LastWriteTimeUtc, TimeSpan.Zero),
+            Metadata = metadata,
+        };
     }
 
     /// <inheritdoc/>

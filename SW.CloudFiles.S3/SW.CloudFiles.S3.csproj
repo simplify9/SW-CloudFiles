@@ -38,7 +38,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="AWSSDK.S3" Version="3.7.412.2" />
+    <PackageReference Include="AWSSDK.S3" Version="3.7.511.8" />
     <PackageReference Include="SimplyWorks.PrimitiveTypes" Version="10.0.1" />
   </ItemGroup>
   <ItemGroup>

@@ -18,7 +18,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="SimplyWorks.PrimitiveTypes" Version="10.0.1" />
+        <PackageReference Include="SimplyWorks.PrimitiveTypes" Version="10.0.2" />
     </ItemGroup>
 
     <ItemGroup>

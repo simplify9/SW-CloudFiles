@@ -23,7 +23,7 @@
            which clashes with Azure.Identity 1.13 (CS0433) here and in every app referencing both. -->
       <PackageReference Include="Azure.ResourceManager.Storage" Version="1.6.2" />
       <PackageReference Include="Azure.Storage.Blobs" Version="12.23.0" />
-        <PackageReference Include="SimplyWorks.PrimitiveTypes" Version="10.0.1" />
+        <PackageReference Include="SimplyWorks.PrimitiveTypes" Version="10.0.2" />
     </ItemGroup>
 
     <ItemGroup>
